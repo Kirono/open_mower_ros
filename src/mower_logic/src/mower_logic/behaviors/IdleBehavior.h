@@ -68,7 +68,7 @@ class IdleBehavior : public Behavior {
 
   uint8_t get_state() override;
 
-  void handle_action(std::string action) override;
+  bool handle_action(std::string action) override;
 };
 
 #endif  // SRC_IDLEBEHAVIOR_H

@@ -630,6 +630,23 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
   return true;
 }
 
+void handle_action(std::string action) {
+    if(action == "mower_logic:automatic_mowing/stop") {
+        auto new_config = getConfig();
+        if(!new_config.manual_pause_mowing) {
+            new_config.manual_pause_mowing = true;
+            setConfig(new_config);
+        }
+    }
+    else if(action == "mower_logic:automatic_mowing/start" ) {
+        auto new_config = getConfig();
+        if(new_config.manual_pause_mowing) {
+            new_config.manual_pause_mowing = false;
+            setConfig(new_config);
+        }
+    }
+}
+
 void actionReceived(const std_msgs::String::ConstPtr &action) {
   if (action->data == "mower_logic/reset_emergency") {
     ROS_WARN_STREAM("Got reset emergency action.");
@@ -637,8 +654,13 @@ void actionReceived(const std_msgs::String::ConstPtr &action) {
     return;
   }
 
-  if (currentBehavior) {
-    currentBehavior->handle_action(action->data);
+  bool handled = false;
+  if(currentBehavior) {
+	  handled = currentBehavior->handle_action(action->data);
+  }
+  if(!handled) {
+	  handle_action(action->data);
+
   }
 }
 
@@ -707,6 +729,23 @@ int main(int argc, char **argv) {
   ros::Subscriber action = n->subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
   ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
+
+  std::vector<xbot_msgs::ActionInfo> actions;
+
+  xbot_msgs::ActionInfo stop_auto_action;
+  stop_auto_action.action_id = "stop";
+  stop_auto_action.enabled = true;
+  stop_auto_action.action_name = "Stop Automatic Mowing";
+
+  xbot_msgs::ActionInfo start_auto_action;
+  start_auto_action.action_id = "start";
+  start_auto_action.enabled = true;
+  start_auto_action.action_name = "Start Automatic Mowing";
+
+  actions.push_back(stop_auto_action);
+  actions.push_back(start_auto_action);
+
+  registerActions("mower_logic:automatic_mowing", actions);
 
   ros::AsyncSpinner asyncSpinner(1);
   asyncSpinner.start();
