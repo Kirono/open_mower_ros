@@ -203,7 +203,7 @@ Behavior *DockingBehavior::execute() {
 
   // Disable GPS
   inApproachMode = false;
-  setGPS(false);
+  setGPS(true);
 
   if (PerimeterSearchBehavior::configured(config)) return &PerimeterSearchBehavior::INSTANCE;
 

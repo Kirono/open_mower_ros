@@ -58,7 +58,7 @@ Behavior *IdleBehavior::execute() {
     return &AreaRecordingBehavior::INSTANCE;
   }
 
-  setGPS(false);
+  setGPS(true);
   geometry_msgs::PoseStamped docking_pose_stamped;
   docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
   docking_pose_stamped.header.frame_id = "map";
