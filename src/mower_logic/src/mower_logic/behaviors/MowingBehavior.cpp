@@ -40,6 +40,8 @@ extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
+extern mower_msgs::Status getStatus();
+
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
 MowingBehavior MowingBehavior::INSTANCE;
@@ -264,6 +266,8 @@ bool MowingBehavior::execute_mowing_plan() {
     ////////////////////////////////////////////////
     // PAUSE HANDLING
     ////////////////////////////////////////////////
+
+
     if (requested_pause_flag) {  // pause was requested
       paused = true;
       mowerEnabled = false;
@@ -304,6 +308,7 @@ bool MowingBehavior::execute_mowing_plan() {
       paused = false;
       update_actions();
     }
+
 
     auto &path = currentMowingPaths[currentMowingPath];
     ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
@@ -347,6 +352,13 @@ bool MowingBehavior::execute_mowing_plan() {
             current_status.state_ == actionlib::SimpleClientGoalState::PENDING) {
           // path is being executed, everything seems fine.
           // check if we should pause or abort mowing
+
+        	auto last_status = getStatus();
+			if ( last_status.ultrasonic_ranges[2]<0.25) {
+				  ROS_INFO_STREAM("MowingBehavior: (found uss2)  setting fake obstacöe or something idk");
+				  sleep(1);
+				  skip_path=true;
+			}
           if (skip_area) {
             ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) SKIP AREA was requested.");
             // remove all paths in current area and return true
@@ -435,6 +447,7 @@ bool MowingBehavior::execute_mowing_plan() {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
     {
       // enable mower (only when we reach the start not on the way to mowing already)
+
       mowerEnabled = true;
 
       mbf_msgs::ExePathGoal exePathGoal;
