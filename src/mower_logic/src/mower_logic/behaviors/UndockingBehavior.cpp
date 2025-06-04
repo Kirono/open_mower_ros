@@ -190,17 +190,6 @@ UndockingBehavior::UndockingBehavior(Behavior *next) {
 }
 
 void UndockingBehavior::command_home() {
-  if (shared_state->active_semiautomatic_task) {
-    // We are in semiautomatic task, mark it as manually paused.
-    ROS_INFO_STREAM("Manually pausing semiautomatic task");
-    shared_state->semiautomatic_task_paused = true;
-  }
-  if (paused) {
-    // Request continue to wait for odom
-    this->requestContinue();
-    // Then instantly abort i.e. go to dock.
-  }
-  this->abort();
 }
 
 void UndockingBehavior::command_start() {

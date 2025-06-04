@@ -264,9 +264,6 @@ void DockingBehavior::command_home() {
 }
 
 void DockingBehavior::command_start() {
-  // We got start, so we can reset the last manual pause
-  shared_state->semiautomatic_task_paused = false;
-  manual_start_mowing = true;
 }
 
 void DockingBehavior::command_s1() {
