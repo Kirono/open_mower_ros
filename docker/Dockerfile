@@ -2,14 +2,18 @@
 FROM docker.io/ros:noetic-ros-base-focal AS base
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required packages
-#   - git
-#   - mosquitto broker
-#   - nginx (remove default site to free up port 80)
+# Fix expired ROS GPG key
+RUN apt-get update && apt-get install -y curl gnupg2 lsb-release && \
+    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros-latest.list && \
+    apt-get update
+
+# Now install your required packages
 RUN apt-get update && apt-get install --yes \
     git \
     mosquitto \
-    nginx && rm -rf /var/www /etc/nginx/sites-enabled/* \
+    nginx && \
+    rm -rf /var/www /etc/nginx/sites-enabled/* && \
     rm -rf /var/lib/apt/lists/*
 
 # Install our configs
