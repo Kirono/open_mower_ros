@@ -6,9 +6,23 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   - git
 #   - mosquitto broker
 #   - nginx (remove default site to free up port 80)
+
+# fix the keyring
+RUN rm /etc/apt/sources.list.d/ros1-latest.list \
+  && rm /usr/share/keyrings/ros1-latest-archive-keyring.gpg
+
+RUN apt-get update \
+  && apt-get install -y ca-certificates curl
+
+RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') ;\
+    curl -L -s -o /tmp/ros-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $VERSION_CODENAME)_all.deb" \
+    && apt-get update \
+    && apt-get install /tmp/ros-apt-source.deb \
+    && rm -f /tmp/ros-apt-source.deb
+
 RUN apt-get update && apt-get install --yes \
     git \
-    mosquitto \
+    mosquitto python3.8-venv \
     nginx && rm -rf /var/www /etc/nginx/sites-enabled/* \
     rm -rf /var/lib/apt/lists/*
 
@@ -43,7 +57,7 @@ COPY --link --from=fetch /opt/open_mower_ros/src/lib/slic3r_coverage_planner /op
 WORKDIR /opt/slic3r_coverage_planner_workspace
 RUN rosdep install --from-paths src --ignore-src --simulate | \
     sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > apt-install_list && \
-    apt-get update && apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
+    apt-get update && apt-get install --no-install-recommends --yes $(cat apt-install_list) libasio-dev && \
     rm -rf /var/lib/apt/lists/* apt-install_list
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_coverage_planner_workspace/devel/setup.bash && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/prebuilt/slic3r_coverage_planner install"
@@ -77,7 +91,7 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 #Fetch the list of packages, this only changes if new dependencies have been added (only sometimes)
 COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
-    apt-get install --no-install-recommends --yes $(cat /apt-install_list) && \
+    apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # This will already have the submodules initialized, no need to clone again
