@@ -43,6 +43,9 @@
 #include "std_msgs/Bool.h"
 #include "std_msgs/Empty.h"
 
+#include <sensor_msgs/LaserScan.h>
+#include <limits>
+
 ros::Publisher status_pub;
 ros::Publisher wheel_tick_pub;
 
@@ -609,9 +612,51 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   if (dirty) configTracker.setDirty();
 }
 
+ros::Publisher left_pub, center_pub, right_pub;
+
+void statusCallback(const status_msg::Status::ConstPtr& msg) {
+    if (msg->ultrasonic_ranges.size() >= 3) {
+        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame");
+        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame");
+        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame");
+    } else {
+        ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
+    }
+}
+
+void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) {
+    sensor_msgs::LaserScan scan;
+    scan.header.stamp = ros::Time::now();
+    scan.header.frame_id = frame_id;
+
+    scan.angle_min = -0.05;
+    scan.angle_max = 0.05;
+    scan.angle_increment = 0.1;
+    scan.time_increment = 0.0;
+    scan.scan_time = 0.1;
+    scan.range_min = 0.02;
+    scan.range_max = 1.0;
+
+    if (range >= scan.range_max) {
+        range = std::numeric_limits<float>::infinity();  // No detection
+    }
+
+    scan.ranges.push_back(range);
+    scan.intensities.push_back(1.0);
+    pub.publish(scan);
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms");
+  ros::init(argc, argv, "ultrasonic_bridge_node");
+  ros::NodeHandle nh;
 
+  // Publishers for simulated laser scans
+  left_pub   = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_left", 10);
+  center_pub = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_center", 10);
+  right_pub  = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_right", 10);
+
+  ros::Subscriber sub = nh.subscribe("/status", 10, statusCallback);  // Replace topic name if different
   sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;
 
