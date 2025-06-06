@@ -614,15 +614,7 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
 
 ros::Publisher left_pub, center_pub, right_pub;
 
-void statusCallback(const status_msg::Status::ConstPtr& msg) {
-    if (msg->ultrasonic_ranges.size() >= 3) {
-        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame");
-        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame");
-        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame");
-    } else {
-        ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
-    }
-}
+
 
 void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) {
     sensor_msgs::LaserScan scan;
@@ -644,6 +636,16 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) 
     scan.ranges.push_back(range);
     scan.intensities.push_back(1.0);
     pub.publish(scan);
+}
+
+void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
+    if (msg->ultrasonic_ranges.size() >= 3) {
+        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame");
+        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame");
+        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame");
+    } else {
+        ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
+    }
 }
 
 int main(int argc, char **argv) {
