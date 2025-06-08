@@ -650,7 +650,6 @@ void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms");
-  ros::init(argc, argv, "ultrasonic_bridge_node");
   ros::NodeHandle nh;
 
   // Publishers for simulated laser scans
@@ -658,7 +657,7 @@ int main(int argc, char **argv) {
   center_pub = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_center", 10);
   right_pub  = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_right", 10);
 
-  ros::Subscriber sub = nh.subscribe("/status", 10, statusCallback);  // Replace topic name if different
+  ros::Subscriber sub = nh.subscribe("/mower/status", 10, statusCallback);  // Replace topic name if different
   sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;
 
