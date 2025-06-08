@@ -621,13 +621,13 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) 
     scan.header.stamp = ros::Time::now();
     scan.header.frame_id = frame_id;
 
-    scan.angle_min = -0.05;
-    scan.angle_max = 0.05;
+    scan.angle_min = -0.2;
+    scan.angle_max = 0.2;
     scan.angle_increment = 0.1;
     scan.time_increment = 0.0;
     scan.scan_time = 0.1;
     scan.range_min = 0.02;
-    scan.range_max = 1.0;
+    scan.range_max = 0.65;
 
     if (range >= scan.range_max) {
         range = std::numeric_limits<float>::infinity();  // No detection
