@@ -2,7 +2,7 @@
     <!-- === Static TFs for ultrasonic sensors === -->
     <!-- Left sensor: 17 cm forward, 7.5 cm to the left, angled 45° left -->
     <node pkg="tf" type="static_transform_publisher" name="ultrasonic_left_tf"
-          args="0.47 0.275 0 0 0 0.785 base_link ultrasonic_left_frame 100"/>
+          args="0.47 0.275 0 0.785 0 0 base_link ultrasonic_left_frame 100"/>
     <!-- Center sensor: 23 cm forward, facing straight -->
     <node pkg="tf" type="static_transform_publisher" name="ultrasonic_center_tf"
           args="0.23 0 0 0 0 0 base_link ultrasonic_center_frame 100"/>
