@@ -8,8 +8,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   - nginx (remove default site to free up port 80)
 
 # fix the keyring
-RUN rm -f /etc/apt/sources.list.d/ros1-latest.list \
-  && rm /usr/share/keyrings/ros1-latest-archive-keyring.gpg
+RUN [ -f /etc/apt/sources.list.d/ros1-latest.list ] && rm /etc/apt/sources.list.d/ros1-latest.list \
+    && [ -f /usr/share/keyrings/ros1-latest-archive-keyring.gpg ] && rm /usr/share/keyrings/ros1-latest-archive-keyring.gpg
+
 
 RUN apt-get update \
   && apt-get install -y ca-certificates curl
