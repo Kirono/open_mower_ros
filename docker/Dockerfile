@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   - nginx (remove default site to free up port 80)
 
 # fix the keyring
-RUN rm /etc/apt/sources.list.d/ros1-latest.list \
+RUN rm -f /etc/apt/sources.list.d/ros1-latest.list \
   && rm /usr/share/keyrings/ros1-latest-archive-keyring.gpg
 
 RUN apt-get update \
