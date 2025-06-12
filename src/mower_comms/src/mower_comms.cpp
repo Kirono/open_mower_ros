@@ -48,6 +48,10 @@
 #include <sensor_msgs/PointField.h>
 #include <limits>
 
+#include <actionlib_msgs/GoalStatusArray.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Path.h>
+
 ros::Publisher status_pub;
 ros::Publisher wheel_tick_pub;
 
@@ -686,16 +690,92 @@ void publishPointCloud(ros::Publisher& pub, float range, const std::string& fram
     pub.publish(cloud);
 }
 
+
+ros::Publisher goal_pub;
+std::vector<geometry_msgs::PoseStamped> planned_path;
+geometry_msgs::PoseStamped current_goal;
+
+// Callback for GlobalPlanner's planned path
+void pathCallback(const nav_msgs::Path::ConstPtr& msg) {
+    planned_path = msg->poses; // Store planned path
+    if(planned_path.size()>0){
+    	ROS_INFO("Received a new planned path with %lu waypoints.", planned_path.size());
+    }
+
+}
+
+// Callback for move_base_flex current goal
+void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
+    current_goal = *msg; // Store current goal
+    ROS_INFO("Current goal updated: X = %f, Y = %f", current_goal.pose.position.x, current_goal.pose.position.y);
+}
+
+void movebaseCallback(const actionlib_msgs::GoalStatusArray::ConstPtr& msg) {
+	if (!msg->status_list.empty()) {
+	        for (const auto& status : msg->status_list) {
+	            if (status.status == 4) { // ABORTED goal
+	                ROS_WARN("Goal aborted! Attempting to advance to the next valid waypoint...");
+
+	                // Find the current goal in the path
+	                int index = -1;
+	                for (size_t i = 0; i < planned_path.size(); i++) {
+	                    if (planned_path[i].pose.position.x == current_goal.pose.position.x &&
+	                        planned_path[i].pose.position.y == current_goal.pose.position.y) {
+	                        index = i;
+	                        break;
+	                    }
+	                }
+
+	                // Determine how many steps to move forward (max 4)
+	                int steps_to_advance = std::min(4, (int)planned_path.size() - index - 1);
+	                if (index != -1 && steps_to_advance > 0) {
+	                    geometry_msgs::PoseStamped new_goal = planned_path[index + steps_to_advance];
+	                    goal_pub.publish(new_goal);
+	                    ROS_INFO("New goal published at X: %f, Y: %f", new_goal.pose.position.x, new_goal.pose.position.y);
+	                } else {
+	                    ROS_ERROR("Failed to advance goal: Not enough waypoints remaining.");
+	                }
+	            }
+	        }
+	    }
+	}
+void statucheckgoal(const mower_msgs::Status::ConstPtr& msg){
+	 if ((msg->ultrasonic_ranges[1]<0.37 || msg->ultrasonic_ranges[2]<0.37 || msg->ultrasonic_ranges[3]<0.37)) { // ABORTED goal
+				ROS_WARN("Goal aborted! Attempting to advance to the next valid waypoint...");
+
+				// Find the current goal in the path
+				int index = -1;
+				for (size_t i = 0; i < planned_path.size(); i++) {
+					if (planned_path[i].pose.position.x == current_goal.pose.position.x &&
+						planned_path[i].pose.position.y == current_goal.pose.position.y) {
+						index = i;
+						break;
+					}
+				}
+
+				// Determine how many steps to move forward (max 4)
+				int steps_to_advance = std::min(4, (int)planned_path.size() - index - 1);
+				if (index != -1 && steps_to_advance > 0) {
+					geometry_msgs::PoseStamped new_goal = planned_path[index + steps_to_advance];
+					goal_pub.publish(new_goal);
+					ROS_INFO("New goal published at X: %f, Y: %f", new_goal.pose.position.x, new_goal.pose.position.y);
+				} else {
+					//ROS_ERROR("Failed to advance goal: Not enough waypoints remaining.");
+				}
+			}
+
+}
 void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
     if (msg->ultrasonic_ranges.size() >= 3) {
         publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame");
         publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame");
         publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame");
+        //statucheckgoal(msg);
+
     } else {
         ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
     }
 }
-
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms");
   ros::NodeHandle nh;
@@ -706,6 +786,10 @@ int main(int argc, char **argv) {
   right_pub  = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_right", 10);
 
   ros::Subscriber sub = nh.subscribe("/mower/status", 10, statusCallback);  // Replace topic name if different
+  // Subscriber for goal status
+  //ros::Subscriber movebase_status_sub = nh.subscribe("/move_base_flex/move_base/status", 10, movebaseCallback);
+  //ros::Subscriber path_sub = nh.subscribe("/move_base_flex/GlobalPlanner/plan", 10, pathCallback);
+  //ros::Subscriber goal_sub = nh.subscribe("/move_base_flex/current_goal", 10, goalCallback);
   sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;
 

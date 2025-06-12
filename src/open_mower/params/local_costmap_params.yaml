@@ -20,7 +20,7 @@ local_costmap:
     inflation_radius: 0.0
 
   obstacle_layer:
-	decay_time: 3.5
+    decay_time: 3.5
     observation_sources: ultrasonic_left ultrasonic_center ultrasonic_right
 
     ultrasonic_left:
