@@ -20,7 +20,6 @@ local_costmap:
     inflation_radius: 0.0
 
   obstacle_layer:
-    decay_time: 3.5
     observation_sources: ultrasonic_left ultrasonic_center ultrasonic_right
 
     ultrasonic_left:
@@ -32,6 +31,7 @@ local_costmap:
       max_obstacle_height: 0.5
       obstacle_range: 0.37
       raytrace_range: 2.0
+      inf_is_valid: true
 
     ultrasonic_center:
       data_type: LaserScan
@@ -42,6 +42,7 @@ local_costmap:
       max_obstacle_height: 0.5
       obstacle_range: 0.37
       raytrace_range: 2.0
+      inf_is_valid: true
 
     ultrasonic_right:
       data_type: LaserScan
@@ -52,3 +53,4 @@ local_costmap:
       max_obstacle_height: 0.5
       obstacle_range: 0.37
       raytrace_range: 2.0
+      inf_is_valid: true
