@@ -1,5 +1,16 @@
 <launch>
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/record_map.rviz" required="true" />
-    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure">
-    </node>
+  <!-- Load the URDF description -->
+  <param name="robot_description" textfile="$(find open_mower)/urdf/lawnmow.urdf" />
+
+  <!-- Publish joint states -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+
+  <!-- Publish TFs and robot model -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- Launch RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/record_map.rviz" required="true" />
+
+  <!-- Launch rqt_reconfigure if needed -->
+  <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" />
 </launch>

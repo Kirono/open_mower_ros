@@ -627,13 +627,13 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) 
     scan.header.stamp = ros::Time::now();
     scan.header.frame_id = frame_id;
 
-    scan.angle_min = -0.1;
-    scan.angle_max = 0.1;
+    scan.angle_min = -0.25;
+    scan.angle_max = 0.25;
     scan.angle_increment = 0.05;
     scan.time_increment = 0.0;
     scan.scan_time = 0.1;
-    scan.range_min = 0.18;
-    scan.range_max = 0.4;
+    scan.range_min = 0.16;
+    scan.range_max = 0.42;
 
     int num_readings = std::round((scan.angle_max - scan.angle_min) / scan.angle_increment) + 1;
 

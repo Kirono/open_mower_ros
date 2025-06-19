@@ -41,6 +41,7 @@ extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern mower_msgs::Status getStatus();
 
 MowingBehavior MowingBehavior::INSTANCE;
 
@@ -404,7 +405,7 @@ bool MowingBehavior::execute_mowing_plan() {
             ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) - Attempt "
                             << first_point_trim_counter << " / " << config.max_first_point_trim_attempts
                             << " Trimming first point off the beginning of the mow path.");
-            currentMowingPathIndex++;
+            currentMowingPathIndex+=20;
             first_point_trim_counter++;
             first_point_attempt_counter = 0;  // give it another <config.max_first_point_attempts> attempts
             paused = true;
@@ -533,10 +534,28 @@ bool MowingBehavior::execute_mowing_plan() {
 
           // currentMowingPathIndex might be 0 if we never consumed one of the points, we advance at least 1 point
           if (currentMowingPathIndex == 0) currentMowingPathIndex++;
+          auto last_status = getStatus();
+
           if (!requested_pause_flag) {
-            ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
-            paused = true;
-            update_actions();
+        	  if(true){
+				  currentMowingPathIndex+=20;
+				  ROS_INFO_STREAM("MowingBehavior: (MOW) skipped ahead to index " << currentMowingPathIndex);
+				 if (currentMowingPathIndex >= path.path.poses.size() ||
+					(path.path.poses.size() - currentMowingPathIndex) < 5)  // fully mowed the path ?
+					{
+					  ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
+					  currentMowingPath++;
+					  currentMowingPathIndex = 0;
+					  // continue with next segment
+					}
+				}
+        	  else{
+        		  ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
+        		  paused = true;
+        		  update_actions();
+        	  }
+
+
           }
         }
       }

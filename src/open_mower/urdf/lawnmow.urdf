@@ -1,0 +1,158 @@
+<?xml version="1.0"?>
+<robot name="lawnmow">
+
+  <!-- * * * Link Definitions * * * -->
+
+  <link name="base_link">
+
+  <visual>
+
+      <origin xyz="0 0 0.278" rpy="0 0.12 0"/>
+
+   <geometry>
+
+    <box size="0.657359 0.4441 0.085"/>
+
+   </geometry>
+
+   <material name="red">
+
+          <color rgba="1 0 0 1"/>
+
+       </material>
+
+  </visual>
+
+ </link>
+
+  <link name="rr_wheel">
+
+  <visual>
+
+      <origin xyz="0 0 0" rpy="1.58 0 0"/>
+
+   <geometry>
+
+    <cylinder radius="0.167022" length="0.07"/>
+
+   </geometry>
+
+   <material name="black">
+
+          <color rgba="0 0 0 0"/>
+
+       </material>
+
+  </visual>
+
+ </link>
+
+  <link name="lr_wheel">
+
+  <visual>
+
+      <origin xyz="0 0 0" rpy="1.58 0 0"/>
+
+   <geometry>
+
+    <cylinder radius="0.167022" length="0.07"/>
+
+   </geometry>
+
+   <material name="black">
+
+          <color rgba="0 0 0 0"/>
+
+       </material>
+
+  </visual>
+
+ </link>
+
+  <link name="lf_wheel">
+
+  <visual>
+
+      <origin xyz="0 0 0" rpy="1.58 0 0"/>
+
+   <geometry>
+
+    <cylinder radius="0.0889" length="0.07"/>
+
+   </geometry>
+
+   <material name="black">
+
+          <color rgba="0 0 0 0"/>
+
+       </material>
+
+  </visual>
+
+ </link>
+
+  <link name="rf_wheel">
+
+  <visual>
+
+      <origin xyz="0 0 0" rpy="1.58 0 0"/>
+
+   <geometry>
+
+    <cylinder radius="0.0889" length="0.07"/>
+
+   </geometry>
+
+   <material name="black">
+
+          <color rgba="0 0 0 0"/>
+
+       </material>
+
+  </visual>
+
+ </link>
+
+<!-- * * * Joint Definitions * * * -->
+
+  <joint name="rr_wheel_joint" type="fixed">
+
+     <parent link="base_link"/>
+
+     <child link="rr_wheel"/>
+
+     <origin xyz="-0.25 0.26 .18" rpy="0 0 0"/>
+
+ </joint>
+
+ <joint name="lr_wheel_joint" type="fixed">
+
+     <parent link="base_link"/>
+
+     <child link="lr_wheel"/>
+
+     <origin xyz="-0.25 -0.26 .18" rpy="0 0 0"/>
+
+ </joint>
+
+ <joint name="lf_wheel_joint" type="fixed">
+
+     <parent link="base_link"/>
+
+     <child link="lf_wheel"/>
+
+     <origin xyz="0.25 -0.19 .1" rpy="0 0 0"/>
+
+ </joint>
+
+ <joint name="rf_wheel_joint" type="fixed">
+
+     <parent link="base_link"/>
+
+     <child link="rf_wheel"/>
+
+     <origin xyz="0.25 0.19 .1" rpy="0 0 0"/>
+
+ </joint>
+
+</robot>
