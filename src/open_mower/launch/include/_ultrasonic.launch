@@ -5,7 +5,7 @@
           args="0.27 0.075 0 0.785 0 0 base_link ultrasonic_left_frame 100"/>
     <!-- Center sensor: 23 cm forward, facing straight -->
     <node pkg="tf" type="static_transform_publisher" name="ultrasonic_center_tf"
-          args="0.23 0 0 0 0 0 base_link ultrasonic_center_frame 100"/>
+          args="0.24 0 0 0 0 0 base_link ultrasonic_center_frame 100"/>
     <!-- Right sensor: 27 cm forward, 7.5 cm to the right, angled 45° right -->
     <node pkg="tf" type="static_transform_publisher" name="ultrasonic_right_tf"
           args="0.27 -0.075 0 -0.785 0 0 base_link ultrasonic_right_frame 100"/>

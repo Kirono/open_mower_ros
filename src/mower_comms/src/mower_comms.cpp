@@ -622,18 +622,18 @@ ros::Publisher left_pub, center_pub, right_pub;
 
 
 
-void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) {
+void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, float anglemin, float anglemax) {
     sensor_msgs::LaserScan scan;
     scan.header.stamp = ros::Time::now();
     scan.header.frame_id = frame_id;
 
-    scan.angle_min = -0.25;
-    scan.angle_max = 0.25;
+    scan.angle_min = anglemin;
+    scan.angle_max = anglemax;
     scan.angle_increment = 0.05;
     scan.time_increment = 0.0;
     scan.scan_time = 0.1;
     scan.range_min = 0.16;
-    scan.range_max = 0.42;
+    scan.range_max = 0.50;
 
     int num_readings = std::round((scan.angle_max - scan.angle_min) / scan.angle_increment) + 1;
 
@@ -650,44 +650,6 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id) 
     }
 
     pub.publish(scan);
-}
-
-void publishPointCloud(ros::Publisher& pub, float range, const std::string& frame_id) {
-    sensor_msgs::PointCloud2 cloud;
-    cloud.header.stamp = ros::Time::now();
-    cloud.header.frame_id = frame_id;
-
-    cloud.height = 1;  // Single row
-    cloud.width = 3;   // Three points (example)
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
-
-    // Define fields manually
-    cloud.fields.resize(4);
-    cloud.fields[0].name = "x"; cloud.fields[0].offset = 0; cloud.fields[0].datatype = sensor_msgs::PointField::FLOAT32; cloud.fields[0].count = 1;
-    cloud.fields[1].name = "y"; cloud.fields[1].offset = 4; cloud.fields[1].datatype = sensor_msgs::PointField::FLOAT32; cloud.fields[1].count = 1;
-    cloud.fields[2].name = "z"; cloud.fields[2].offset = 8; cloud.fields[2].datatype = sensor_msgs::PointField::FLOAT32; cloud.fields[2].count = 1;
-    cloud.fields[3].name = "intensity"; cloud.fields[3].offset = 12; cloud.fields[3].datatype = sensor_msgs::PointField::FLOAT32; cloud.fields[3].count = 1;
-
-    cloud.point_step = 16;  // Each point takes 16 bytes (4 fields * 4 bytes)
-    cloud.row_step = cloud.point_step * cloud.width;
-    cloud.data.resize(cloud.row_step);
-
-    float angle_step = 0.05;
-    float angle_min = -0.1, angle_max = 0.1;
-    int num_points = (angle_max - angle_min) / angle_step + 1;
-
-    float* data_ptr = reinterpret_cast<float*>(cloud.data.data());
-
-    for (int i = 0; i < num_points; ++i) {
-        float angle = angle_min + i * angle_step;
-        data_ptr[i * 4 + 0] = range * cos(angle);  // x
-        data_ptr[i * 4 + 1] = range * sin(angle);  // y
-        data_ptr[i * 4 + 2] = 0.0;                 // z
-        data_ptr[i * 4 + 3] = 1.0;                 // intensity
-    }
-
-    pub.publish(cloud);
 }
 
 
@@ -767,9 +729,9 @@ void statucheckgoal(const mower_msgs::Status::ConstPtr& msg){
 }
 void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
     if (msg->ultrasonic_ranges.size() >= 3) {
-        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame");
-        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame");
-        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame");
+        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.25,0.25);
+        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame",-0.5,0.5);
+        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.25,0.25);
         //statucheckgoal(msg);
 
     } else {
