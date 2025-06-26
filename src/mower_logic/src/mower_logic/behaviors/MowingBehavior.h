@@ -24,6 +24,7 @@
 #include "slic3r_coverage_planner/Path.h"
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "xbot_msgs/ActionInfo.h"
+#include <std_msgs/Bool.h>
 
 class MowingBehavior : public Behavior {
  private:

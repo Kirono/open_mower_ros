@@ -45,6 +45,9 @@
 
 #include <sensor_msgs/LaserScan.h>
 #include <limits>
+#include "slic3r_coverage_planner/Path.h"
+#include "slic3r_coverage_planner/PlanPath.h"
+#include <nav_msgs/Path.h>
 
 ros::Publisher status_pub;
 ros::Publisher wheel_tick_pub;
@@ -52,8 +55,14 @@ ros::Publisher wheel_tick_pub;
 ros::Publisher sensor_imu_pub;
 ros::Publisher sensor_mag_pub;
 
-COBS cobs;
+extern mower_logic::MowerLogicConfig getConfig();
+std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
+slic3r_coverage_planner::Path path;
 
+bool path_is_outline = false;
+
+COBS cobs;
+bool disable_rigth_sensor = false;
 // True, if ROS thinks there sould be an emergency
 bool emergency_high_level = false;
 // True, if the LL board thinks there should be an emergency
@@ -616,7 +625,7 @@ ros::Publisher left_pub, center_pub, right_pub;
 
 
 
-void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, float anglemin, float anglemax) {
+void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, float anglemin, float anglemax, float rangemax, bool isRigthSensor) {
     sensor_msgs::LaserScan scan;
     scan.header.stamp = ros::Time::now();
     scan.header.frame_id = frame_id;
@@ -626,8 +635,8 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, 
     scan.angle_increment = 0.05;
     scan.time_increment = 0.0;
     scan.scan_time = 0.1;
-    scan.range_min = 0.16;
-    scan.range_max = 0.50;
+    scan.range_min = 0.18;
+    scan.range_max = rangemax;
 
     int num_readings = std::round((scan.angle_max - scan.angle_min) / scan.angle_increment) + 1;
 
@@ -635,7 +644,7 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, 
     scan.intensities.resize(num_readings);
 
     for (int i = 0; i < num_readings; ++i) {
-        if (range >= scan.range_max) {
+        if (range >= scan.range_max || (path_is_outline && disable_rigth_sensor && isRigthSensor)) {
             scan.ranges[i] = std::numeric_limits<float>::infinity();  // No detection
         } else {
             scan.ranges[i] = range;  // Same value in all directions
@@ -648,14 +657,19 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, 
 
 void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
     if (msg->ultrasonic_ranges.size() >= 3) {
-        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.25,0.25);
-        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame",-0.5,0.5);
-        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.25,0.25);
+        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.25,0.55,0.55,false);
+        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame",-0.5,0.5,0.52,false);
+        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.55,0.25,0.55,true);
 
     } else {
         ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
     }
 }
+
+void outlineCallback(const std_msgs::Bool::ConstPtr& msg) {
+	path_is_outline = msg->data;
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms");
   ros::NodeHandle nh;
@@ -665,7 +679,9 @@ int main(int argc, char **argv) {
   center_pub = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_center", 10);
   right_pub  = nh.advertise<sensor_msgs::LaserScan>("/ultrasonic_front_right", 10);
 
+  ros::Subscriber outline_sub = nh.subscribe("/mower_logic/is_outline_flag", 1, outlineCallback);
   ros::Subscriber sub = nh.subscribe("/mower/status", 10, statusCallback);  // Replace topic name if different
+  //ros::Subscriber subpath = nh.subscribe("mower_logic/mowing_path", 10, statusCallbackpath);
 
   sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;
@@ -686,7 +702,7 @@ int main(int argc, char **argv) {
     ROS_ERROR_STREAM("Error getting low level serial port parameter. Quitting.");
     return 1;
   }
-
+  paramNh.getParam("disable_rigth_sensor", disable_rigth_sensor);
   paramNh.getParam("wheel_ticks_per_m", wheel_ticks_per_m);
   paramNh.getParam("wheel_distance_m", wheel_distance_m);
 

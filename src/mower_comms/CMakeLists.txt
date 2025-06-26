@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   mower_msgs
         sensor_msgs
+  nav_msgs
+  slic3r_coverage_planner
   roscpp
   serial
         xesc_driver
@@ -113,11 +115,12 @@ find_package(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES mower_comms
-#  CATKIN_DEPENDS mower_msgs roscpp serial
-#  DEPENDS system_lib
+  # INCLUDE_DIRS include
+  # LIBRARIES mower_comms
+  CATKIN_DEPENDS mower_msgs roscpp serial nav_msgs slic3r_coverage_planner
+  # DEPENDS system_lib
 )
+
 
 ###########
 ## Build ##

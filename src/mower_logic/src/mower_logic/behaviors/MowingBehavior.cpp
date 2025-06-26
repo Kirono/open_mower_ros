@@ -29,6 +29,7 @@
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_map/SetNavPointSrv.h"
 
+
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient pathClient;
 extern ros::ServiceClient pathProgressClient;
@@ -42,6 +43,7 @@ extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 extern mower_msgs::Status getStatus();
+ros::Publisher is_outline_pub;
 
 MowingBehavior MowingBehavior::INSTANCE;
 
@@ -54,7 +56,8 @@ std::string MowingBehavior::state_name() {
 
 Behavior *MowingBehavior::execute() {
   shared_state->active_semiautomatic_task = true;
-
+  ros::NodeHandle nh;
+  is_outline_pub = nh.advertise<std_msgs::Bool>("/mower_logic/is_outline_flag", 1);
   while (ros::ok() && !aborted) {
     if (currentMowingPaths.empty() && !create_mowing_plan(currentMowingArea)) {
       ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
@@ -74,6 +77,9 @@ Behavior *MowingBehavior::execute() {
       currentMowingPaths.clear();
       currentMowingPath = 0;
       currentMowingPathIndex = 0;
+        std_msgs::Bool msg;
+        msg.data = false;
+        is_outline_pub.publish(msg);
     }
   }
 
@@ -107,6 +113,9 @@ void MowingBehavior::reset() {
   currentMowingPaths.clear();
   currentMowingArea = 0;
   currentMowingPath = 0;
+    std_msgs::Bool msg;
+    msg.data = false;
+    is_outline_pub.publish(msg);
   currentMowingPathIndex = 0;
   // increase cumulative mowing angle offset increment
   currentMowingAngleIncrementSum = std::fmod(currentMowingAngleIncrementSum + getConfig().mow_angle_increment, 360);
@@ -197,6 +206,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   }
 
   currentMowingPaths = pathSrv.response.paths;
+
 
   // Calculate mowing plan digest from the poses
   // TODO: move to slic3r_coverage_planner
@@ -307,6 +317,9 @@ bool MowingBehavior::execute_mowing_plan() {
     }
 
     auto &path = currentMowingPaths[currentMowingPath];
+	  std_msgs::Bool msg;
+	  msg.data = path.is_outline;
+	  is_outline_pub.publish(msg);
     ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
 
     // Check if path is empty. If so, directly skip it
@@ -314,6 +327,10 @@ bool MowingBehavior::execute_mowing_plan() {
       ROS_INFO_STREAM("MowingBehavior: Skipping empty path.");
       currentMowingPath++;
       currentMowingPathIndex = 0;
+      auto &path = currentMowingPaths[currentMowingPath];
+        std_msgs::Bool msg;
+        msg.data = path.is_outline;
+        is_outline_pub.publish(msg);
       continue;
     }
 
@@ -361,6 +378,10 @@ bool MowingBehavior::execute_mowing_plan() {
             skip_path = false;
             currentMowingPath++;
             currentMowingPathIndex = 0;
+            auto &path = currentMowingPaths[currentMowingPath];
+            std_msgs::Bool msg;
+            msg.data = path.is_outline;
+            is_outline_pub.publish(msg);
             return false;
           }
           if (aborted) {
@@ -475,6 +496,10 @@ bool MowingBehavior::execute_mowing_plan() {
           if (skip_path) {
             skip_path = false;
             currentMowingPath++;
+            auto &path = currentMowingPaths[currentMowingPath];
+              std_msgs::Bool msg;
+              msg.data = path.is_outline;
+              is_outline_pub.publish(msg);
             currentMowingPathIndex = 0;
             return false;
           }
@@ -524,6 +549,10 @@ bool MowingBehavior::execute_mowing_plan() {
         {
           ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
           currentMowingPath++;
+          auto &path = currentMowingPaths[currentMowingPath];
+            std_msgs::Bool msg;
+            msg.data = path.is_outline;
+            is_outline_pub.publish(msg);
           currentMowingPathIndex = 0;
           // continue with next segment
         } else {
@@ -537,7 +566,6 @@ bool MowingBehavior::execute_mowing_plan() {
           auto last_status = getStatus();
 
           if (!requested_pause_flag) {
-        	  if(true){
 				  currentMowingPathIndex+=20;
 				  ROS_INFO_STREAM("MowingBehavior: (MOW) skipped ahead to index " << currentMowingPathIndex);
 				 if (currentMowingPathIndex >= path.path.poses.size() ||
@@ -545,10 +573,13 @@ bool MowingBehavior::execute_mowing_plan() {
 					{
 					  ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
 					  currentMowingPath++;
+					  auto &path = currentMowingPaths[currentMowingPath];
+					    std_msgs::Bool msg;
+					    msg.data = path.is_outline;
+					    is_outline_pub.publish(msg);
 					  currentMowingPathIndex = 0;
 					  // continue with next segment
 					}
-				}
         	  else{
         		  ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
         		  paused = true;

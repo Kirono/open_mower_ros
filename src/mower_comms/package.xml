@@ -11,6 +11,8 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>xbot_msgs</build_depend>
   <build_depend>mower_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>slic3r_coverage_planner</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>serial</build_depend>
@@ -21,8 +23,11 @@
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>serial</build_export_depend>
   <build_export_depend>xesc_driver</build_export_depend>
+  <build_export_depend>slic3r_coverage_planner</build_export_depend>
   <exec_depend>xbot_msgs</exec_depend>
   <exec_depend>mower_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>slic3r_coverage_planner</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>serial</exec_depend>
   <exec_depend>xesc_driver</exec_depend>
