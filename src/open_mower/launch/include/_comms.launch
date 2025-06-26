@@ -13,6 +13,7 @@
         <param if="$(eval optenv('OM_XESC_RIGHT_PORT')!='')" name="right_xesc/serial_port" value="$(optenv OM_XESC_RIGHT_PORT)"/>
         <param if="$(eval optenv('OM_XESC_MOWER_PORT')!='')" name="mower_xesc/serial_port" value="$(optenv OM_XESC_MOWER_PORT)"/>
         <param name="wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
+        <param name="disable_rigth_sensor" value="$(optenv OM_DISABLE_RIGTH_SENSOR False)"/>
         <param name="wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
         <param name="dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
         <param name="language" value="$(optenv OM_LANGUAGE en)"/>
