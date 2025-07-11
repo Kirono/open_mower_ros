@@ -657,9 +657,9 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, 
 
 void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
     if (msg->ultrasonic_ranges.size() >= 3) {
-        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.25,0.55,0.55,false);
+        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.35,0.55,0.55,false);
         publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame",-0.5,0.5,0.52,false);
-        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.55,0.25,0.55,true);
+        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.55,0.35,0.55,true);
 
     } else {
         ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
