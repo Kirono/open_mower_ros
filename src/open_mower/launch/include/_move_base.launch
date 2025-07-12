@@ -17,6 +17,7 @@
     <param name="base_global_planner" value="GlobalPlanner" />
     <param name="controller_frequency" type="double" value="10.0" />
     <param name="controller_patience" type="double" value="0.5" />
+    <param name="planner_patience" type="double" value="0.5" />
   </node>
 
 </launch>
