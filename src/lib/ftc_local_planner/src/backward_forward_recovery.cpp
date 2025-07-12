@@ -3,130 +3,168 @@
 #include <ros/ros.h>
 #include <tf2/utils.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <cmath>
 
-namespace ftc_local_planner
-{
+namespace ftc_local_planner {
 
-BackwardForwardRecovery::BackwardForwardRecovery()
-  : initialized_(false),
-    max_distance_(0.2),
-    linear_vel_(0.3),
-    check_frequency_(10.0),
-    max_cost_threshold_(costmap_2d::INSCRIBED_INFLATED_OBSTACLE-10),
-    timeout_(ros::Duration(6.0)) {}
-
-void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer* tf,
-                                costmap_2d::Costmap2DROS* global_costmap,
-                                costmap_2d::Costmap2DROS* local_costmap)
-{
-  if(!initialized_){
-    name_ = name;
-    tf_ = tf;
-    global_costmap_ = global_costmap;
-    local_costmap_ = local_costmap;
-
-    ros::NodeHandle private_nh("~/" + name_);
-    cmd_vel_pub_ = private_nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
-
-    private_nh.param("max_distance", max_distance_, 0.2);
-    private_nh.param("linear_vel", linear_vel_, 0.3);
-    private_nh.param("check_frequency", check_frequency_, 10.0);
-    int temp_threshold;
-    private_nh.param("max_cost_threshold", temp_threshold, static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE-10));
-    max_cost_threshold_ = static_cast<unsigned char>(temp_threshold);
-
-    double timeout_seconds;
-    private_nh.param("timeout", timeout_seconds, 6.0);
-    timeout_ = ros::Duration(timeout_seconds);
-
-    initialized_ = true;
-  }
-  else{
-    ROS_ERROR("You should not call initialize twice on this object, doing nothing");
-  }
+BackwardForwardRecovery::BackwardForwardRecovery() :
+		initialized_(false), max_distance_(0.5), linear_vel_(0.3), check_frequency_(
+				10.0), max_cost_threshold_(
+				costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10), obstacle_check_distance_(
+				0.5), timeout_(ros::Duration(3.0), obstacle_footprint_(true)) {
 }
 
-void BackwardForwardRecovery::runBehavior()
-{
-  if (!initialized_)
-  {
-    ROS_ERROR("This object must be initialized before runBehavior is called");
-    return;
-  }
+void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer *tf,
+		costmap_2d::Costmap2DROS *global_costmap,
+		costmap_2d::Costmap2DROS *local_costmap) {
+	if (!initialized_) {
+		name_ = name;
+		tf_ = tf;
+		global_costmap_ = global_costmap;
+		local_costmap_ = local_costmap;
 
-  ROS_WARN("Running Backward/Forward recovery behavior");
+		ros::NodeHandle private_nh("~/" + name_);
+		cmd_vel_pub_ = private_nh.advertise < geometry_msgs::Twist
+				> ("/cmd_vel", 1);
 
-  if (attemptMove(max_distance_, false)) {
-    ROS_INFO("Successfully moved backwards");
-    return;
-  }
+		private_nh.param("max_distance", max_distance_, 0.5);
+		private_nh.param("linear_vel", linear_vel_, 0.3);
+		private_nh.param("check_frequency", check_frequency_, 10.0);
+		int temp_threshold;
+		private_nh.param("max_cost_threshold", temp_threshold,
+				static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10));
+		max_cost_threshold_ = static_cast<unsigned char>(temp_threshold);
+		private_nh.param("obstacle_check_distance", obstacle_check_distance_,
+				0.5);
 
-  if (attemptMove(max_distance_, true)) {
-    ROS_INFO("Successfully moved forwards");
-    return;
-  }
+		double timeout_seconds;
+		private_nh.param("timeout", timeout_seconds, 3.0);
+		timeout_ = ros::Duration(timeout_seconds);
 
-  ROS_WARN("Backward/Forward recovery behavior failed to move in either direction");
+		bool obstacle_footprint_;
+		private_nh.param("obstacle_footprint", obstacle_footprint_, true);
+
+		initialized_ = true;
+	} else {
+		ROS_ERROR(
+				"You should not call initialize twice on this object, doing nothing");
+	}
 }
 
-bool BackwardForwardRecovery::attemptMove(double distance, bool forward)
-{
-  geometry_msgs::PoseStamped start_pose;
-  local_costmap_->getRobotPose(start_pose);
+void BackwardForwardRecovery::runBehavior() {
+	if (!initialized_) {
+		ROS_ERROR(
+				"This object must be initialized before runBehavior is called");
+		return;
+	}
 
-  ros::Rate rate(check_frequency_);
-  geometry_msgs::Twist cmd_vel;
-  cmd_vel.linear.x = forward ? linear_vel_ : -linear_vel_;
+	ROS_WARN("Running Backward/Forward recovery behavior");
 
-  double moved_distance = 0.0;
-  ros::Time start_time = ros::Time::now();
-  while (moved_distance < distance && (ros::Time::now() - start_time) < timeout_)
-  {
-    geometry_msgs::PoseStamped current_pose;
-    local_costmap_->getRobotPose(current_pose);
+	if (attemptMove(max_distance_, false)) {
+		ROS_INFO("Successfully moved backwards");
+		return;
+	}
 
-    moved_distance = std::hypot(
-      current_pose.pose.position.x - start_pose.pose.position.x,
-      current_pose.pose.position.y - start_pose.pose.position.y
-    );
-    ROS_INFO_THROTTLE(0.2, "%s movement moved %.2f meters",
-                      forward ? "Forward" : "Backward", moved_distance);
+	if (attemptMove(max_distance_, true)) {
+		ROS_INFO("Successfully moved forwards");
+		return;
+	}
 
-    if (!isPositionValid(current_pose.pose.position.x, current_pose.pose.position.y))
-    {
-      ROS_WARN("Reached maximum allowed cost after moving %.2f meters", moved_distance);
-      cmd_vel.linear.x = 0;
-      cmd_vel_pub_.publish(cmd_vel);
-      return false;
-    }
-
-    cmd_vel_pub_.publish(cmd_vel);
-    rate.sleep();
-  }
-
-  cmd_vel.linear.x = 0;
-  cmd_vel_pub_.publish(cmd_vel);
-
-  if (moved_distance >= distance) {
-    ROS_INFO("%s movement completed successfully", forward ? "Forward" : "Backward");
-    return true;
-  } else {
-    ROS_WARN("%s movement timed out after %.2f seconds", forward ? "Forward" : "Backward", timeout_.toSec());
-    return false;
-  }
+	ROS_WARN(
+			"Backward/Forward recovery behavior failed to move in either direction");
 }
 
-bool BackwardForwardRecovery::isPositionValid(double x, double y)
-{
-  unsigned int mx, my;
-  if (local_costmap_->getCostmap()->worldToMap(x, y, mx, my))
-  {
-    unsigned char cost = local_costmap_->getCostmap()->getCost(mx, my);
-    return (cost <= max_cost_threshold_);
-  }
-  return false;
+bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
+	geometry_msgs::PoseStamped start_pose;
+	local_costmap_->getRobotPose(start_pose);
+
+	ros::Rate rate(check_frequency_);
+	geometry_msgs::Twist cmd_vel;
+	cmd_vel.linear.x = forward ? linear_vel_ : -linear_vel_;
+
+	double moved_distance = 0.0;
+	ros::Time start_time = ros::Time::now();
+	while (moved_distance < distance
+			&& (ros::Time::now() - start_time) < timeout_) {
+		geometry_msgs::PoseStamped current_pose;
+		local_costmap_->getRobotPose(current_pose);
+
+		moved_distance = std::hypot(
+				current_pose.pose.position.x - start_pose.pose.position.x,
+				current_pose.pose.position.y - start_pose.pose.position.y);
+
+		if (!isPathClear(current_pose.pose, forward)) {
+			ROS_WARN("Obstacle too close after moving %.2f meters",
+					moved_distance);
+			cmd_vel.linear.x = 0;
+			cmd_vel_pub_.publish(cmd_vel);
+			return false;
+		}
+
+		cmd_vel_pub_.publish(cmd_vel);
+		rate.sleep();
+	}
+
+	cmd_vel.linear.x = 0;
+	cmd_vel_pub_.publish(cmd_vel);
+
+	if (moved_distance >= distance) {
+		ROS_INFO("%s movement completed successfully",
+				forward ? "Forward" : "Backward");
+		return true;
+	} else {
+		ROS_WARN("%s movement timed out after %.2f seconds",
+				forward ? "Forward" : "Backward", timeout_.toSec());
+		return false;
+	}
 }
 
+bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
+		bool forward) {
+	double yaw = tf2::getYaw(pose.orientation);
+	if (!forward) {
+		yaw += M_PI;
+	}
+
+	double resolution = local_costmap_->getCostmap()->getResolution();
+	unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
+
+	for (unsigned int i = 1; i <= steps; ++i) {
+		double dist = i * resolution;
+		double x = pose.position.x + dist * std::cos(yaw);
+		double y = pose.position.y + dist * std::sin(yaw);
+
+		unsigned int mx, my;
+
+		if (!local_costmap_->getCostmap()->worldToMap(x, y, mx, my)) {
+			return false;
+		}
+
+		unsigned char cost = local_costmap_->getCostmap()->getCost(mx, my);
+		if (cost > max_cost_threshold_) {
+			return false;
+		}
+
+		if (obstacle_footprint_) {
+			std::vector < geometry_msgs::Point > footprint;
+			local_costmap_->getOrientedFootprint(footprint);
+			for (int i = 0; i < footprint.size(); i++) {
+				x = footprint[i].x + dist * std::cos(yaw);
+				y = footprint[i].y + dist * std::sin(yaw);
+
+				if (!local_costmap_->getCostmap()->worldToMap(x, y, mx, my)) {
+					return false;
+				}
+				cost = local_costmap_->getCostmap()->getCost(mx, my);
+				if (cost > max_cost_threshold_) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+}
 }  // namespace ftc_local_planner
 
 PLUGINLIB_EXPORT_CLASS(ftc_local_planner::BackwardForwardRecovery, nav_core::RecoveryBehavior)
