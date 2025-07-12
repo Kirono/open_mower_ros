@@ -11,7 +11,7 @@ BackwardForwardRecovery::BackwardForwardRecovery() :
 		initialized_(false), max_distance_(0.5), linear_vel_(0.3), check_frequency_(
 				10.0), max_cost_threshold_(
 				costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10), obstacle_check_distance_(
-				0.5), timeout_(ros::Duration(3.0), obstacle_footprint_(true)) {
+				0.5), timeout_(ros::Duration(3.0)), obstacle_footprint_(true) {
 }
 
 void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer *tf,
@@ -162,8 +162,8 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
 			}
 		}
 
-		return true;
 	}
+		return true;
 }
 }  // namespace ftc_local_planner
 
