@@ -8,7 +8,7 @@ FTCPlanner:
   kd_ang: 0.5
   kd_lat: 1.23
   kd_lon: 0.0
-  ki_ang: 0.0
+  ki_ang: 0.1
   ki_ang_max: 62.0
   ki_lat: 0.06153
   ki_lat_max: 62.0
