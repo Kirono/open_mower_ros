@@ -73,7 +73,32 @@ bool DockingBehavior::approach_docking_point() {
     exePathGoal.controller = "FTCPlanner";
     ROS_INFO_STREAM("Executing Docking Approach");
 
-    auto approachResult = mbfClientExePath->sendGoalAndWait(exePathGoal);
+    //auto approachResult = mbfClientExePath->sendGoalAndWait(exePathGoal);
+
+    mbfClientExePath->sendGoal(exePathGoal);
+
+    auto approachResult = mbfClientExePath->getState();
+
+    // Now manually monitor in a loop
+    ros::Rate r(10);
+    while (ros::ok()) {
+        approachResult = mbfClientExePath->getState();
+
+        if (approachResult.isDone()) {
+            ROS_INFO_STREAM("ExePath finished with state: " << approachResult.toString());
+            break;
+        }
+
+        // Your custom condition to break early
+        if (paused) {
+            ROS_WARN("Cancelling path execution due to condition");
+            mbfClientExePath->cancelGoal();
+            break;
+        }
+
+        ros::spinOnce();
+        r.sleep();
+    }
     if (approachResult.state_ != approachResult.SUCCEEDED) {
       return false;
     }
@@ -181,9 +206,16 @@ Behavior *DockingBehavior::execute() {
   while (!isGPSGood) {
     ROS_WARN_STREAM("Waiting for good GPS");
     ros::Duration(1.0).sleep();
+    if(paused){
+    	  return &IdleBehavior::INSTANCE;
+      }
   }
 
   bool approachSuccess = approach_docking_point();
+
+  if(paused){
+	  return &IdleBehavior::INSTANCE;
+  }
 
   if (!approachSuccess) {
     ROS_ERROR("Error during docking approach.");
@@ -203,7 +235,7 @@ Behavior *DockingBehavior::execute() {
 
   // Disable GPS
   inApproachMode = false;
-  setGPS(true);
+  setGPS(false);
 
   if (PerimeterSearchBehavior::configured(config)) return &PerimeterSearchBehavior::INSTANCE;
 
@@ -286,5 +318,13 @@ uint8_t DockingBehavior::get_state() {
 }
 
 bool DockingBehavior::handle_action(std::string action) {
-	return false;
+	if (action == "mower_logic:mowing/pause") {
+	    ROS_INFO_STREAM("got pause command");
+	    paused=true;
+	}
+	else
+	{
+		return false;
+	}
+	return true;
 }
