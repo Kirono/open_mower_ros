@@ -604,7 +604,7 @@ int main(int argc, char **argv) {
         ros::master::V_TopicInfo topics;
         ros::master::getTopics(topics);
         std::for_each(topics.begin(), topics.end(), [&](const ros::master::TopicInfo &item) {
-            
+
             if (!boost::regex_match(item.name, topic_regex) || active_subscribers.count(item.name) != 0)
                 return;
 
@@ -617,7 +617,7 @@ int main(int argc, char **argv) {
                     // Sensor already known and sensor-info equals?
                     if(exist != 0 && found_sensors[topic] == *msg)
                         return;
-                    
+
                     {
                         // Sensor is new or sensor-info differ from the buffered one
                         std::unique_lock<std::mutex> lk(mqtt_callback_mutex);
