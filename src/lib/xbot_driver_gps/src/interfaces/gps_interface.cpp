@@ -49,8 +49,8 @@ namespace xbot {
                 auto millis = duration_cast<milliseconds>(steady_clock::now() - start).count();
 
                 if (millis > 10) {
-                    /*log("waited " + std::to_string(millis) +
-                        " ms to write to the tx buffer, serial port is probably congested!", ERROR);*/
+                    log("waited " + std::to_string(millis) +
+                        " ms to write to the tx buffer, serial port is probably congested!", ERROR);
                 }
 
                 // extend the buffer

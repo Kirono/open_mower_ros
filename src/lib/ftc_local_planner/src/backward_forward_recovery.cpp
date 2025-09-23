@@ -10,7 +10,7 @@ namespace ftc_local_planner {
 BackwardForwardRecovery::BackwardForwardRecovery() :
 		initialized_(false), max_distance_(0.2), linear_vel_(0.30), check_frequency_(
 				10.0), max_cost_threshold_(
-				costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10), obstacle_check_distance_(
+				costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 100), obstacle_check_distance_(
 				0.2), timeout_(ros::Duration(6.0)), obstacle_footprint_(true) {
 }
 
@@ -32,7 +32,7 @@ void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer *tf,
 		private_nh.param("check_frequency", check_frequency_, 10.0);
 		int temp_threshold;
 		private_nh.param("max_cost_threshold", temp_threshold,
-				static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10));
+				static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 100));
 		max_cost_threshold_ = static_cast<unsigned char>(temp_threshold);
 		private_nh.param("obstacle_check_distance", obstacle_check_distance_,
 				0.2);

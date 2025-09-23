@@ -1,13 +1,4 @@
 <launch>
-		<!-- === Static transform from map to odom === -->
-    <!-- This is a dummy transform to satisfy costmap / RViz -->
-    <node pkg="tf" type="static_transform_publisher" name="map_to_odom"
-          args="0 0 0 0 0 0 map odom 100"/>
-
-    <!-- === Static transform from odom to base_link === -->
-    <node pkg="tf" type="static_transform_publisher" name="odom_to_base_link"
-          args="0 0 0 0 0 0 odom base_link 100"/>
-
     <!-- === Static TFs for ultrasonic sensors === -->
     <!-- Left sensor: 17 cm forward, 7.5 cm to the left, angled 45° left -->
     <node pkg="tf" type="static_transform_publisher" name="ultrasonic_left_tf"

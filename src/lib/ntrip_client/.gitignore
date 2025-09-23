@@ -1,6 +1,0 @@
-# Python artifacts
-*.pyc
-__pycache__
-
-# Swap files from vim
-.*.sw*
