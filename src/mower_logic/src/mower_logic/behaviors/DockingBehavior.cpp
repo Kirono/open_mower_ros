@@ -38,6 +38,7 @@ bool DockingBehavior::approach_docking_point() {
   tf2::Matrix3x3 m(quat);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
+  ros::Rate r(10);
 
   // Get the approach start point
   {
@@ -47,7 +48,29 @@ bool DockingBehavior::approach_docking_point() {
     mbf_msgs::MoveBaseGoal moveBaseGoal;
     moveBaseGoal.target_pose = docking_approach_point;
     moveBaseGoal.controller = "FTCPlanner";
-    auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
+    //auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
+    mbfClient->sendGoal(moveBaseGoal);
+    auto result = mbfClient->getState();
+
+    while (ros::ok()) {
+    	result = mbfClient->getState();
+
+		if (result.isDone()) {
+			ROS_INFO_STREAM("Exegoal finished with state: " << result.toString());
+			break;
+		}
+
+		// Your custom condition to break early
+		if (paused) {
+			ROS_WARN("Cancelling goal execution due to condition");
+			mbfClient->cancelGoal();
+			break;
+		}
+
+		ros::spinOnce();
+		r.sleep();
+	}
+
     if (result.state_ != result.SUCCEEDED) {
       return false;
     }
@@ -80,7 +103,7 @@ bool DockingBehavior::approach_docking_point() {
     auto approachResult = mbfClientExePath->getState();
 
     // Now manually monitor in a loop
-    ros::Rate r(10);
+
     while (ros::ok()) {
         approachResult = mbfClientExePath->getState();
 
