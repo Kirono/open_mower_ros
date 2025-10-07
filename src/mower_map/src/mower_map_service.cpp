@@ -26,6 +26,8 @@
 #include <rosbag/view.h>
 
 // Include Messages
+#include <nav_msgs/Path.h>
+
 #include "geometry_msgs/Point32.h"
 #include "geometry_msgs/Polygon.h"
 #include "geometry_msgs/PoseStamped.h"
@@ -41,6 +43,7 @@
 #include "mower_map/DeleteMowingAreaSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
+#include "mower_map/PersistNextGlobalPlanSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_map/SetNavPointSrv.h"
 
@@ -48,6 +51,14 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include "xbot_msgs/Map.h"
+
+enum ePersistMode {
+  NONE = 0,
+  PERSIST_AREAS = 1,
+  NAV_AREAS = 2,
+  MOV_AREAS = 3,
+  MAP_AREAS = 4,
+};
 
 // Publishes the map as occupancy grid
 ros::Publisher map_pub, map_areas_pub;
@@ -62,6 +73,7 @@ ros::Publisher xbot_monitoring_map_pub;
 // mowing_areas (i.e. grass needs to be cut here)
 std::vector<mower_map::MapArea> navigation_areas;
 std::vector<mower_map::MapArea> mowing_areas;
+std::vector<mower_map::MapArea> persist_areas;
 
 // The recorded docking pose. Note that this is the pose from which the docking attempt is started
 // I.e. the robot will drive to this pose and then drive forward
@@ -70,9 +82,19 @@ bool has_docking_point = false;
 bool show_fake_obstacle = false;
 geometry_msgs::Pose fake_obstacle_pose;
 
+// Whether to use persistance to randomise paths
+bool usePersist = true;
+
+int persist_mode = ePersistMode::NONE;
+int persist_num_paths = 0;
+
+// Whether to persist the next global_plan message to the costmap
+bool persistNextGPlan = false;
+
 // The grid map. This is built from the polygons loaded from the file.
 grid_map::GridMap map;
 
+std::vector<nav_msgs::Path> PersistencePaths;
 /**
  * Convert a geometry_msgs::Polygon to a grid_map::Polygon.
  * This is needed in order to add recorded polys to the map.
@@ -224,6 +246,8 @@ void visualizeAreas() {
  * Finally, a blur is applied to the map so that it is expensive, but not completely forbidden to drive near boundaries.
  */
 void buildMap() {
+  double map_res = 0.05;
+
   // First, calculate the size of the map by finding the min and max values for x and y.
   float minX = FLT_MAX;
   float maxX = FLT_MIN;
@@ -263,7 +287,14 @@ void buildMap() {
       }
     }
   }
-
+  for (const auto &area : persist_areas) {
+      for (auto pt : area.area.points) {
+        minX = std::min(minX, pt.x);
+        maxX = std::max(maxX, pt.x);
+        minY = std::min(minY, pt.y);
+        maxY = std::max(maxY, pt.y);
+      }
+    }
   // Enlarge the map by 1m in all directions.
   // This guarantees that even after blurring, the map has an occupied border.
   maxX += 1.0;
@@ -288,7 +319,7 @@ void buildMap() {
   ROS_INFO_STREAM("Map Position: x=" << origin.x() << ", y=" << origin.y());
   ROS_INFO_STREAM("Map Size: x=" << (maxX - minX) << ", y=" << (maxY - minY));
 
-  map.setGeometry(grid_map::Length(maxX - minX, maxY - minY), 0.05, origin);
+  map.setGeometry(grid_map::Length(maxX - minX, maxY - minY), map_res, origin);
   map.setTimestamp(ros::Time::now().toNSec());
 
   map.clearAll();
@@ -384,7 +415,54 @@ void buildMap() {
   cv::Mat cv_map;
   grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "navigation_area", CV_8UC1, cv_map);
 
-  cv::blur(cv_map, cv_map, cv::Size(5, 5));
+  // Create a separate image for just the paths
+    cv::Mat path_image = cv::Mat::zeros(cv_map.size(), CV_8UC1);
+
+    if (persist_mode != ePersistMode::NONE) {
+      std::vector<std::vector<mower_map::MapArea> *> areaLists;
+      if (persist_mode == ePersistMode::PERSIST_AREAS) {
+        areaLists.push_back(&persist_areas);
+      } else if (persist_mode == ePersistMode::NAV_AREAS) {
+        areaLists.push_back(&navigation_areas);
+      } else if (persist_mode == ePersistMode::MOV_AREAS) {
+        areaLists.push_back(&mowing_areas);
+      } else if (persist_mode == ePersistMode::MAP_AREAS) {
+        areaLists.push_back(&navigation_areas);
+        areaLists.push_back(&mowing_areas);
+      } else {
+        areaLists.push_back(&mowing_areas);
+      }
+
+      for (int j = 0; j < PersistencePaths.size(); j++) {
+        if (PersistencePaths[j].poses.size() >= 2) {
+          for (int i = 0; i < PersistencePaths[j].poses.size() - 1; i++) {
+            grid_map::Position startPos(PersistencePaths[j].poses[i].pose.position.x,
+                                        PersistencePaths[j].poses[i].pose.position.y);
+            grid_map::Position endPos(PersistencePaths[j].poses[i + 1].pose.position.x,
+                                      PersistencePaths[j].poses[i + 1].pose.position.y);
+            for (auto areaList : areaLists) {
+              for (auto area : *areaList) {
+                grid_map::Polygon poly;
+                fromMessage(area.area, poly);
+                if (poly.isInside(startPos) && poly.isInside(endPos)) {
+                  for (grid_map::LineIterator iterator(map, startPos, endPos); !iterator.isPastEnd(); ++iterator) {
+                    const grid_map::Index index(*iterator);
+                    double cost = 0.05 + ((0.2 * (j + 1)) / PersistencePaths.size());
+                    path_image.at<uchar>(index[0], index[1]) = (uchar)(cost * 255);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Blur only the path image
+    cv::GaussianBlur(path_image, path_image, cv::Size(7, 7), 0);
+
+    // Take the maximum cost between original map and blurred paths
+    cv::max(cv_map, path_image, cv_map);
 
   grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(cv_map, "navigation_area", map);
 
@@ -410,6 +488,9 @@ void saveMapToFile() {
   for (auto &area : navigation_areas) {
     bag.write("navigation_areas", ros::Time::now(), area);
   }
+  for (auto &area : persist_areas) {
+      bag.write("persist_areas", ros::Time::now(), area);
+    }
 
   if (has_docking_point) {
     bag.write("docking_point", ros::Time::now(), docking_point);
@@ -452,6 +533,14 @@ void readMapFromFile(const std::string &filename, bool append = false) {
       auto area = m.instantiate<mower_map::MapArea>();
       navigation_areas.push_back(*area);
     }
+  }
+  {
+	  rosbag::View view(bag, rosbag::TopicQuery("persist_areas"));
+
+	  for (rosbag::MessageInstance const m : view) {
+		auto area = m.instantiate<mower_map::MapArea>();
+		persist_areas.push_back(*area);
+	  }
   }
 
   {
@@ -600,11 +689,76 @@ bool clearMap(mower_map::ClearMapSrvRequest &req, mower_map::ClearMapSrvResponse
   saveMapToFile();
   return true;
 }
+bool persistNextGlobalPlan(mower_map::PersistNextGlobalPlanSrvRequest &req,
+                           mower_map::PersistNextGlobalPlanSrvResponse &res) {
+  ROS_INFO_STREAM("Got persistNextGlobalPlan call with value: " << (req.persist ? "True" : "False"));
+  persistNextGPlan = req.persist;
+  return true;
+}
+
+void FTCPlannerPathReceived(const nav_msgs::Path &msg) {
+  if (persist_mode == ePersistMode::NONE) {
+    PersistencePaths.clear();
+  } else {
+    if (persistNextGPlan) {
+      PersistencePaths.push_back(msg);
+      persistNextGPlan = false;
+
+      while (PersistencePaths.size() > persist_num_paths) {
+        PersistencePaths.erase(PersistencePaths.begin());
+      }
+
+      ROS_INFO_STREAM("mower_map_service: Persisted FTC global plan with " << PersistencePaths.back().poses.size()
+                                                                           << "points");
+      ROS_INFO_STREAM("mower_map_service: Total paths currently persisted: " << PersistencePaths.size());
+
+      rosbag::Bag bag;
+      bag.open("persistPaths.bag", rosbag::bagmode::Write);
+
+      for (auto &path : PersistencePaths) {
+        bag.write("persist_paths", ros::Time::now(), path);
+      }
+
+      bag.close();
+      ROS_INFO_STREAM("mower_map_service: Total paths saved to bag: " << PersistencePaths.size());
+    }
+  }
+}
+
+void readPersistPathsFromFile(void) {
+  rosbag::Bag bag;
+  try {
+    bag.open("persistPaths.bag");
+  } catch (rosbag::BagIOException &e) {
+    ROS_WARN("mower_map_service: Error opening stored persisted paths.");
+    return;
+  }
+
+  PersistencePaths.clear();
+  {
+    rosbag::View view(bag, rosbag::TopicQuery("persist_paths"));
+
+    for (rosbag::MessageInstance const m : view) {
+      auto path = m.instantiate<nav_msgs::Path>();
+      if (path) {
+        PersistencePaths.push_back(*path);
+      }
+    }
+  }
+
+  // config could have changed since last start so limit paths if needed
+  while (PersistencePaths.size() > persist_num_paths) {
+    PersistencePaths.erase(PersistencePaths.begin());
+  }
+
+  ROS_INFO_STREAM("mower_map_service: Persisted paths restored from bag: " << PersistencePaths.size());
+}
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_map_service");
   has_docking_point = false;
   ros::NodeHandle n;
+  ros::NodeHandle paramNh("~");
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
   map_areas_pub = n.advertise<mower_map::MapAreas>("mower_map_service/map_areas", 10, true);
   map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
@@ -612,6 +766,20 @@ int main(int argc, char **argv) {
 
   // Load the default map file
   readMapFromFile("map.bag");
+
+  paramNh.getParam("persist_mode", persist_mode);
+  if ((persist_mode > ePersistMode::MAP_AREAS) || (persist_mode < ePersistMode::NONE))
+    persist_mode = ePersistMode::NONE;
+  paramNh.getParam("persist_num_paths", persist_num_paths);
+  if (persist_num_paths > 30) persist_num_paths = 30;
+  if (persist_num_paths < 0) {
+    persist_mode = ePersistMode::NONE;
+    persist_num_paths = 0;
+  }
+  ROS_INFO_STREAM("mower_map_service: Persist configured, mode:" << persist_mode
+                                                                 << ", max_paths:" << persist_num_paths);
+
+  if (persist_mode != ePersistMode::NONE) readPersistPathsFromFile();
 
   buildMap();
 
@@ -626,6 +794,10 @@ int main(int argc, char **argv) {
   ros::ServiceServer set_nav_point_srv = n.advertiseService("mower_map_service/set_nav_point", setNavPoint);
   ros::ServiceServer clear_nav_point_srv = n.advertiseService("mower_map_service/clear_nav_point", clearNavPoint);
   ros::ServiceServer clear_map_srv = n.advertiseService("mower_map_service/clear_map", clearMap);
+
+  ros::ServiceServer persist_next_global_plan_srv = n.advertiseService("mower_map_service/persist_next_global_plan", persistNextGlobalPlan);
+
+  ros::Subscriber FTCPlanner_path_sub = n.subscribe("/move_base_flex/FTCPlanner/global_plan", 1, FTCPlannerPathReceived);
 
   ros::spin();
   return 0;

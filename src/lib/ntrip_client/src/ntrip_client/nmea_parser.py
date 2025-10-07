@@ -47,9 +47,9 @@ class NMEAParser:
     for char in data[1:]:
       calculated_checksum ^= ord(char)
     if expected_checksum != calculated_checksum:
-      self._logwarn('Received invalid NMEA sentence. Checksum mismatch');
-      self._logwarn('Expected Checksum:   0x{:X}'.format(expected_checksum))
-      self._logwarn('Calculated Checksum: 0x{:X}'.format(calculated_checksum))
+      #self._logwarn('Received invalid NMEA sentence. Checksum mismatch');
+      #self._logwarn('Expected Checksum:   0x{:X}'.format(expected_checksum))
+      #self._logwarn('Calculated Checksum: 0x{:X}'.format(calculated_checksum))
       return False
 
     # Passed all checks

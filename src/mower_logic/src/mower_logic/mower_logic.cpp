@@ -39,6 +39,7 @@
 #include "mower_map/ClearNavPointSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
+#include "mower_map/PersistNextGlobalPlanSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_map/SetNavPointSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
@@ -58,7 +59,7 @@
 #include "xbot_positioning/SetPoseSrv.h"
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
-    setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
+setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient, persistGPlanClient;
 
 ros::NodeHandle *n;
 ros::NodeHandle *paramNh;
@@ -703,6 +704,7 @@ int main(int argc, char **argv) {
   pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
   clearMapClient = n->serviceClient<mower_map::ClearMapSrv>("mower_map_service/clear_map");
+  persistGPlanClient = n->serviceClient<mower_map::PersistNextGlobalPlanSrv>("mower_map_service/persist_next_global_plan");
 
   gpsClient = n->serviceClient<xbot_positioning::GPSControlSrv>("xbot_positioning/set_gps_state");
   positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>("xbot_positioning/set_robot_pose");

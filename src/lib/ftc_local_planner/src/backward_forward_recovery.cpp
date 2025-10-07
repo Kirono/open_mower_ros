@@ -137,8 +137,9 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
     double resolution = local_costmap_->getCostmap()->getResolution();
     unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
 
-    for (unsigned int step = 1; step <= steps; ++step) {
-        double dist = step * resolution;
+    for (unsigned int step = steps; step <= steps; ++step) {
+    	//double dist = step * resolution;
+    	double dist = resolution;
 		// Create direction vector for the yaw
 		double yaw_cos = std::cos(yaw);
 		double yaw_sin = std::sin(yaw);
@@ -158,7 +159,7 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
             return false;
         }
 
-        if (obstacle_footprint_) {
+        /*if (obstacle_footprint_) {
             std::vector<geometry_msgs::Point> footprint;
             local_costmap_->getOrientedFootprint(footprint);
 
@@ -187,7 +188,7 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
                     }
                 }
             }
-        }
+        }*/
     }
     return true;
 }
@@ -201,8 +202,9 @@ bool BackwardForwardRecovery::isPathGlobalClear(const geometry_msgs::Pose &pose,
     double resolution = global_costmap_->getCostmap()->getResolution();
     unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
 
-    for (unsigned int step = 1; step <= steps; ++step) {
-        double dist = step * resolution;
+    for (unsigned int step = steps; step <= steps; ++step) {
+    	//double dist = step * resolution;
+    	double dist = resolution;
 		// Create direction vector for the yaw
 		double yaw_cos = std::cos(yaw);
 		double yaw_sin = std::sin(yaw);
@@ -222,7 +224,7 @@ bool BackwardForwardRecovery::isPathGlobalClear(const geometry_msgs::Pose &pose,
             return false;
         }
 
-        if (obstacle_footprint_) {
+        /*if (obstacle_footprint_) {
             std::vector<geometry_msgs::Point> footprint;
             global_costmap_->getOrientedFootprint(footprint);
 
@@ -251,7 +253,7 @@ bool BackwardForwardRecovery::isPathGlobalClear(const geometry_msgs::Pose &pose,
                     }
                 }
             }
-        }
+        }*/
     }
     return true;
 }

@@ -76,6 +76,7 @@ add_service_files(
         ClearNavPointSrv.srv
         SetNavPointSrv.srv
         ClearMapSrv.srv
+        PersistNextGlobalPlanSrv.srv
 )
 
 ## Generate actions in the 'action' folder
