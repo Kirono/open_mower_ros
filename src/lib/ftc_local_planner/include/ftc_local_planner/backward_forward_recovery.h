@@ -23,8 +23,8 @@ public:
 
 private:
   bool attemptMove(double distance, bool forward);
-  bool isPathClear(const geometry_msgs::Pose& pose, bool forward);
-  bool isPathGlobalClear(const geometry_msgs::Pose& pose, bool forward);
+  bool isPathClear(const geometry_msgs::Pose &pose, bool forward, double obstacle_check_path);
+  bool isPathGlobalClear(const geometry_msgs::Pose &pose, bool forward, double obstacle_check_path);
 
   std::string name_;
   bool initialized_;
