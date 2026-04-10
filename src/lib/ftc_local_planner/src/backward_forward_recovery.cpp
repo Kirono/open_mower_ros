@@ -8,10 +8,10 @@
 namespace ftc_local_planner {
 
 BackwardForwardRecovery::BackwardForwardRecovery() :
-		initialized_(false), max_distance_(0.2), linear_vel_(0.30), check_frequency_(
+		initialized_(false), max_distance_(0.5), linear_vel_(0.30), check_frequency_(
 				10.0), max_cost_threshold_(
-				costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10), obstacle_check_distance_(
-				0.2), timeout_(ros::Duration(6.0)), obstacle_footprint_(true) {
+				costmap_2d::LETHAL_OBSTACLE), obstacle_check_distance_(
+				0.5), timeout_(ros::Duration(6.0)), obstacle_footprint_(true) {
 }
 
 void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer *tf,
@@ -27,13 +27,14 @@ void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer *tf,
 		cmd_vel_pub_ = private_nh.advertise < geometry_msgs::Twist
 				> ("/cmd_vel", 1);
 
-		private_nh.param("max_distance", max_distance_, 0.2);
+		private_nh.param("max_distance", max_distance_, 0.5);
 		private_nh.param("linear_vel", linear_vel_, 0.30);
 		private_nh.param("check_frequency", check_frequency_, 10.0);
 		int temp_threshold;
 		private_nh.param("max_cost_threshold", temp_threshold,
-				static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 10));
+				static_cast<int>(costmap_2d::LETHAL_OBSTACLE));
 		max_cost_threshold_ = static_cast<unsigned char>(temp_threshold);
+		max_cost_threshold_ = static_cast<unsigned char>(costmap_2d::LETHAL_OBSTACLE);
 		private_nh.param("obstacle_check_distance", obstacle_check_distance_,
 				0.2);
 
@@ -85,30 +86,59 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 
 	double moved_distance = 0.0;
 	ros::Time start_time = ros::Time::now();
-	while (moved_distance < distance
-			&& (ros::Time::now() - start_time) < timeout_) {
-		geometry_msgs::PoseStamped current_pose;
-		local_costmap_->getRobotPose(current_pose);
+	geometry_msgs::PoseStamped current_pose;
+	local_costmap_->getRobotPose(current_pose);
 
-		moved_distance = std::hypot(
-				current_pose.pose.position.x - start_pose.pose.position.x,
-				current_pose.pose.position.y - start_pose.pose.position.y);
-
-		if (!isPathClear(current_pose.pose, forward)) {
+	if (!isPathClear(current_pose.pose, forward,obstacle_check_distance_)) {
 			ROS_WARN("Obstacle too close after moving %.2f meters",
 					moved_distance);
 			cmd_vel.linear.x = 0;
 			cmd_vel_pub_.publish(cmd_vel);
 			return false;
 		}
-		if (!isPathGlobalClear(current_pose.pose, forward)) {
-					ROS_WARN("global Obstacle too close after moving %.2f meters",
-							moved_distance);
-					cmd_vel.linear.x = 0;
-					cmd_vel_pub_.publish(cmd_vel);
+	if (!isPathGlobalClear(current_pose.pose, forward,obstacle_check_distance_)) {
+				ROS_WARN("global Obstacle too close after moving %.2f meters",
+						moved_distance);
+				cmd_vel.linear.x = 0;
+				cmd_vel_pub_.publish(cmd_vel);
+				return false;
+			}
+	while (moved_distance < distance
+			&& (ros::Time::now() - start_time) < timeout_) {
+		
+		local_costmap_->getRobotPose(current_pose);
+
+		moved_distance = std::hypot(
+				current_pose.pose.position.x - start_pose.pose.position.x,
+				current_pose.pose.position.y - start_pose.pose.position.y);
+		if (!isPathClear(current_pose.pose, forward,0)) {
+			ROS_WARN("Obstacle too close after moving %.2f meters",
+					moved_distance);
+			cmd_vel.linear.x = 0;
+			cmd_vel_pub_.publish(cmd_vel);
+			//return false;
+			if (moved_distance >= distance/2) {
+				ROS_INFO("%s movement completed half successfully",
+						forward ? "Forward" : "Backward");
+				return true;
+			} else {
+				return false;
+			}
+		}
+	if (!isPathGlobalClear(current_pose.pose, forward,0)) {
+				ROS_WARN("global Obstacle too close after moving %.2f meters",
+						moved_distance);
+				cmd_vel.linear.x = 0;
+				cmd_vel_pub_.publish(cmd_vel);
+				//return false;
+				if (moved_distance >= distance/2) {
+					ROS_INFO("%s movement completed half successfully",
+							forward ? "Forward" : "Backward");
+					return true;
+				} else {
 					return false;
 				}
-
+			}
 		cmd_vel_pub_.publish(cmd_vel);
 		rate.sleep();
 	}
@@ -128,18 +158,17 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 }
 
 bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
-                                        bool forward) {
+                                        bool forward, double obstacle_check_path) {
     double yaw = tf2::getYaw(pose.orientation);
     if (!forward) {
         yaw += M_PI;
     }
 
     double resolution = local_costmap_->getCostmap()->getResolution();
-    unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
+    unsigned int steps = std::ceil(obstacle_check_path / resolution);
 
     for (unsigned int step = steps; step <= steps; ++step) {
-    	//double dist = step * resolution;
-    	double dist = resolution;
+    	double dist = step * resolution;
 		// Create direction vector for the yaw
 		double yaw_cos = std::cos(yaw);
 		double yaw_sin = std::sin(yaw);
@@ -154,12 +183,12 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
         }
 
         unsigned char cost = local_costmap_->getCostmap()->getCost(mx, my);
-        if (cost > max_cost_threshold_) {
+        if (cost >= max_cost_threshold_) {
             ROS_WARN("Obstacle too close middle above threshold after checking %.2f meters", dist);
             return false;
         }
 
-        /*if (obstacle_footprint_) {
+        if (obstacle_footprint_) {
             std::vector<geometry_msgs::Point> footprint;
             local_costmap_->getOrientedFootprint(footprint);
 
@@ -182,29 +211,29 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose &pose,
                         return false;
                     }
                     cost = local_costmap_->getCostmap()->getCost(mx, my);
-                    if (cost > max_cost_threshold_) {
+                    if (cost >= max_cost_threshold_) {
                         ROS_WARN("Obstacle too close footprint above threshold after checking %.2f meters, index %zu", dist, fp_idx);
                         return false;
                     }
                 }
             }
-        }*/
+        }
     }
     return true;
 }
 bool BackwardForwardRecovery::isPathGlobalClear(const geometry_msgs::Pose &pose,
-                                        bool forward) {
+                                        bool forward, double obstacle_check_path) {
     double yaw = tf2::getYaw(pose.orientation);
     if (!forward) {
         yaw += M_PI;
     }
 
     double resolution = global_costmap_->getCostmap()->getResolution();
-    unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
+    unsigned int steps = std::ceil(obstacle_check_path / resolution);
 
     for (unsigned int step = steps; step <= steps; ++step) {
-    	//double dist = step * resolution;
-    	double dist = resolution;
+    	double dist = step * resolution;
+
 		// Create direction vector for the yaw
 		double yaw_cos = std::cos(yaw);
 		double yaw_sin = std::sin(yaw);
@@ -219,12 +248,12 @@ bool BackwardForwardRecovery::isPathGlobalClear(const geometry_msgs::Pose &pose,
         }
 
         unsigned char cost = global_costmap_->getCostmap()->getCost(mx, my);
-        if (cost > max_cost_threshold_) {
+        if (cost >= max_cost_threshold_) {
             ROS_WARN("global Obstacle too close middle above threshold after checking %.2f meters", dist);
             return false;
         }
 
-        /*if (obstacle_footprint_) {
+        if (obstacle_footprint_) {
             std::vector<geometry_msgs::Point> footprint;
             global_costmap_->getOrientedFootprint(footprint);
 
@@ -247,13 +276,13 @@ bool BackwardForwardRecovery::isPathGlobalClear(const geometry_msgs::Pose &pose,
                         return false;
                     }
                     cost = global_costmap_->getCostmap()->getCost(mx, my);
-                    if (cost > max_cost_threshold_) {
+                    if (cost >= max_cost_threshold_) {
                         ROS_WARN("global Obstacle too close footprint above threshold after checking %.2f meters, index %zu", dist, fp_idx);
                         return false;
                     }
                 }
             }
-        }*/
+        }
     }
     return true;
 }
