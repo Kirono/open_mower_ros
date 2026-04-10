@@ -114,7 +114,7 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 			}
 	while (moved_distance < distance
 			&& (ros::Time::now() - start_time) < timeout_) {
-		
+
 		local_costmap_->getRobotPose(current_pose);
 
 		moved_distance = std::hypot(
