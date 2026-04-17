@@ -112,6 +112,8 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 				cmd_vel_pub_.publish(cmd_vel);
 				return false;
 			}
+	int path_has_been_clear = 0;
+	int global_path_has_been_clear = 0;
 	while (moved_distance < distance
 			&& (ros::Time::now() - start_time) < timeout_) {
 
@@ -120,20 +122,22 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 		moved_distance = std::hypot(
 				current_pose.pose.position.x - start_pose.pose.position.x,
 				current_pose.pose.position.y - start_pose.pose.position.y);
-		if (!isPathClear(current_pose.pose, forward,0)) {
-			ROS_WARN("Obstacle too close after moving %.2f meters",
-					moved_distance);
-			cmd_vel.linear.x = 0;
-			cmd_vel_pub_.publish(cmd_vel);
-			//return false;
-			if (moved_distance >= distance/2) {
-				ROS_INFO("%s movement completed half successfully",
-						forward ? "Forward" : "Backward");
-				return true;
-			} else {
-				return false;
-			}
+	if (!isPathClear(current_pose.pose, forward,0) && path_has_been_clear) {
+		ROS_WARN("Obstacle too close after moving %.2f meters",
+				moved_distance);
+		cmd_vel.linear.x = 0;
+		cmd_vel_pub_.publish(cmd_vel);
+		//return false;
+		if (moved_distance >= distance/2) {
+			ROS_INFO("%s movement completed half successfully",
+					forward ? "Forward" : "Backward");
+			return true;
+		} else {
+			return false;
 		}
+	}else if(isPathClear(current_pose.pose, forward,0)){
+		path_has_been_clear = 1;
+	}
 	if (!isPathGlobalClear(current_pose.pose, forward,0)) {
 				ROS_WARN("global Obstacle too close after moving %.2f meters",
 						moved_distance);
@@ -147,7 +151,10 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 				} else {
 					return false;
 				}
-			}
+	 }else if(isPathClear(current_pose.pose, forward,0) && global_path_has_been_clear){
+		 global_path_has_been_clear = 1;
+	 }
+
 		cmd_vel_pub_.publish(cmd_vel);
 		rate.sleep();
 	}
