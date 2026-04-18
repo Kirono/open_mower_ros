@@ -98,19 +98,22 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 	geometry_msgs::PoseStamped current_pose;
 	local_costmap_->getRobotPose(current_pose);
 
-	if (!isPathClear(current_pose.pose, forward,obstacle_check_distance_)) {
-			ROS_WARN("Obstacle too close after moving %.2f meters",
-					moved_distance);
+	if (!isPathClear(current_pose.pose, forward,distance)) {
+			ROS_WARN("Obstacle too close after checking %.2f meters",
+					distance);
 			cmd_vel.linear.x = 0;
 			cmd_vel_pub_.publish(cmd_vel);
 			return false;
 		}
-	if (!isPathGlobalClear(current_pose.pose, forward,obstacle_check_distance_)) {
-				ROS_WARN("global Obstacle too close after moving %.2f meters",
-						moved_distance);
+	if (!isPathGlobalClear(current_pose.pose, forward,distance)) {
+				ROS_WARN("global Obstacle too close after checking %.2f meters",
+						distance);
 				cmd_vel.linear.x = 0;
 				cmd_vel_pub_.publish(cmd_vel);
 				return false;
+			}else{
+				ROS_WARN("global Obstacle clear after checking %.2f meters",
+						distance);
 			}
 	int path_has_been_clear = 0;
 	int global_path_has_been_clear = 0;
