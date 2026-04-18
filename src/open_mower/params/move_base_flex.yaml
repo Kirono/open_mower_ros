@@ -13,7 +13,7 @@ recovery_behaviors:
     type: ftc_local_planner/BackwardForwardRecovery
     max_distance: 0.2         # → 10 cm
     linear_vel: 0.15          # → safe reverse speed
-    timeout: 6.0              # → stop trying after 3 seconds
+    timeout: 30.0              # → stop trying after 3 seconds
     #max_cost_threshold: 200   # → optional cost threshold for obstacles
 
 controller_frequency: 10.0

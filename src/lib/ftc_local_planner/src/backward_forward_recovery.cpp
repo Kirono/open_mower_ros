@@ -60,21 +60,22 @@ void BackwardForwardRecovery::runBehavior() {
 	}
 
 	ROS_WARN("Running Backward/Forward recovery behavior");
-
+	ROS_WARN("trying backwards");
 	if (attemptMove(max_distance_, false)) {
 		ROS_INFO("Successfully moved backwards");
 		return;
 	}
-
+	ROS_WARN("trying forwards");
 	if (attemptMove(max_distance_, true)) {
 		ROS_INFO("Successfully moved forwards");
 		return;
 	}
+	ROS_WARN("trying backwards half");
 	if (attemptMove(max_distance_/2, false)) {
 		ROS_INFO("Successfully moved backwards");
 		return;
 	}
-
+	ROS_WARN("trying forwards half");
 	if (attemptMove(max_distance_/2, true)) {
 		ROS_INFO("Successfully moved forwards");
 		return;

@@ -203,7 +203,7 @@ void publishStatus() {
   status_msg.mow_enabled = !(target_speed_mow == 0);
 
   for (uint8_t i = 0; i < 5; i++) {
-    status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i];
+    status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i]/100;
   }
 
   // overwrite emergency with the LL value.
