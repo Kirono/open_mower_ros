@@ -75,10 +75,6 @@ Behavior *IdleBehavior::execute() {
     const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO &&
                                            shared_state->active_semiautomatic_task &&
                                            !shared_state->semiautomatic_task_paused;
-    if(last_status.rain_detected){
-    	rain_resume =
-    	          ros::Time::now() + ros::Duration(last_config.rain_check_seconds + last_config.rain_delay_minutes * 60);
-    }
     const bool rain_delay = last_config.rain_mode == 2 && ros::Time::now() < rain_resume;
     if (rain_delay) {
       ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
