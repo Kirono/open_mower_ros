@@ -140,9 +140,11 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 			return false;
 		}
 	}else if(isPathClear(current_pose.pose, forward,0)){
+		ROS_WARN("Obstacle clear after moving %.2f meters",
+						moved_distance);
 		path_has_been_clear = 1;
 	}
-	if (!isPathGlobalClear(current_pose.pose, forward,0)) {
+	if (!isPathGlobalClear(current_pose.pose, forward,0) && global_path_has_been_clear) {
 				ROS_WARN("global Obstacle too close after moving %.2f meters",
 						moved_distance);
 				cmd_vel.linear.x = 0;
@@ -155,8 +157,10 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward) {
 				} else {
 					return false;
 				}
-	 }else if(isPathClear(current_pose.pose, forward,0) && global_path_has_been_clear){
+	 }else if(isPathClear(current_pose.pose, forward,0)){
 		 global_path_has_been_clear = 1;
+		 ROS_WARN("GLobal Obstacle clear after moving %.2f meters",
+		 						moved_distance);
 	 }
 
 		cmd_vel_pub_.publish(cmd_vel);
