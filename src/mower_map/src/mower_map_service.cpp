@@ -382,16 +382,16 @@ void buildMap() {
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos + 0.55 * left - 0.4 * front;
+      grid_map::Position pos = obstacle_pos + 0.70 * left - 0.4 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos + 0.55 * left + 0.9 * front;
+      grid_map::Position pos = obstacle_pos + 0.70 * left + 1.05 * front;
       poly.addVertex(pos);
     }
 
     {
-      grid_map::Position pos = obstacle_pos - 0.55 * left + 0.9 * front;
+      grid_map::Position pos = obstacle_pos - 0.55 * left + 1.05 * front;
       poly.addVertex(pos);
     }
     {
@@ -460,6 +460,8 @@ void buildMap() {
 
     // Blur only the path image
     cv::GaussianBlur(path_image, path_image, cv::Size(7, 7), 0);
+
+    cv::blur(cv_map, cv_map, cv::Size(10, 10));
 
     // Take the maximum cost between original map and blurred paths
     cv::max(cv_map, path_image, cv_map);
