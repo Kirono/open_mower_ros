@@ -417,6 +417,18 @@ bool MowingBehavior::execute_mowing_plan() {
                                                                      << " Making a little pause ...");
           currentMowingPathIndex+=20;
           ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) skipped ahead 20 to index " << currentMowingPathIndex);
+          if (currentMowingPathIndex >= path.path.poses.size() ||
+          					(path.path.poses.size() - currentMowingPathIndex) < 5)  // fully mowed the path ?
+          					{
+          					  ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
+          					  currentMowingPath++;
+          					  auto &path = currentMowingPaths[currentMowingPath];
+          					    std_msgs::Bool msg;
+          					    msg.data = path.is_outline;
+          					    is_outline_pub.publish(msg);
+          					  currentMowingPathIndex = 0;
+          					  // continue with next segment
+          					}
           paused = true;
           update_actions();
         } else {
@@ -430,6 +442,18 @@ bool MowingBehavior::execute_mowing_plan() {
                             << " Trimming first point off the beginning of the mow path.");
             currentMowingPathIndex+=25;
             ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) skipped ahead 25 to index " << currentMowingPathIndex);
+            if (currentMowingPathIndex >= path.path.poses.size() ||
+            					(path.path.poses.size() - currentMowingPathIndex) < 5)  // fully mowed the path ?
+            					{
+            					  ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
+            					  currentMowingPath++;
+            					  auto &path = currentMowingPaths[currentMowingPath];
+            					    std_msgs::Bool msg;
+            					    msg.data = path.is_outline;
+            					    is_outline_pub.publish(msg);
+            					  currentMowingPathIndex = 0;
+            					  // continue with next segment
+            					}
             first_point_trim_counter++;
             first_point_attempt_counter = 0;  // give it another <config.max_first_point_attempts> attempts
             paused = true;

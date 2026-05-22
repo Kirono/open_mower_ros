@@ -202,9 +202,11 @@ void publishStatus() {
   status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
   status_msg.mow_enabled = !(target_speed_mow == 0);
 
-  for (uint8_t i = 0; i < 5; i++) {
+  status_msg.ultrasonic_ranges[0] = last_ll_status.uss_ranges_m[0];
+  for (uint8_t i = 1; i < 4; i++) {
     status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i]/100;
   }
+  status_msg.ultrasonic_ranges[4] = last_ll_status.uss_ranges_m[4];
 
   // overwrite emergency with the LL value.
   emergency_low_level = last_ll_status.emergency_bitmask > 0;
@@ -655,9 +657,9 @@ void publishScan(ros::Publisher& pub, float range, const std::string& frame_id, 
 
 void statusCallback(const mower_msgs::Status::ConstPtr& msg) {
     if (msg->ultrasonic_ranges.size() >= 3) {
-        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.35,0.55,3.0,false);
-        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame",-0.5,0.5,3.0,false);
-        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.55,0.35,3.0,true);
+        publishScan(left_pub, msg->ultrasonic_ranges[1], "ultrasonic_left_frame",-0.35,2.0,3.0,false);
+        publishScan(center_pub, msg->ultrasonic_ranges[2], "ultrasonic_center_frame",-0.5,2.0,3.0,false);
+        publishScan(right_pub, msg->ultrasonic_ranges[3], "ultrasonic_right_frame",-0.55,2.0,3.0,true);
 
     } else {
         ROS_WARN_THROTTLE(5.0, "Expected at least 3 ultrasonic ranges.");
