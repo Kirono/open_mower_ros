@@ -14,6 +14,7 @@ on:
       - 'releases/**'
       - 'v2'
       - 'rain_delay'
+      - 'development'
     tags:
       - 'v*'
   pull_request:
