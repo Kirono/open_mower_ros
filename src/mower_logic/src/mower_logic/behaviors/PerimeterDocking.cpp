@@ -363,7 +363,8 @@ bool PerimeterBase::redirect_joystick() {
   return false;
 }
 
-void PerimeterBase::handle_action(std::string action) {
+bool PerimeterBase::handle_action(std::string action) {
+  return false;
 }
 
 /**
