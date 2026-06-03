@@ -16,9 +16,11 @@
 
 #include <mower_msgs/Power.h>
 
+#include "mower_map/PersistNextGlobalPlanSrv.h"
 #include "tf2_eigen/tf2_eigen.h"
 
 extern ros::ServiceClient dockingPointClient;
+extern ros::ServiceClient persistGPlanClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 extern xbot_msgs::AbsolutePose getPose();
 extern mower_msgs::Status getStatus();
@@ -136,6 +138,10 @@ Behavior* UndockingBehavior::execute() {
     ROS_ERROR_STREAM("Error during undock");
     return &IdleBehavior::INSTANCE;
   }
+
+  mower_map::PersistNextGlobalPlanSrv persist_plan_srv;
+  persist_plan_srv.request.persist = true;
+  persistGPlanClient.call(persist_plan_srv);
 
   ROS_INFO_STREAM("Undock success. Waiting for GPS.");
   bool hasGps = waitForGPS();

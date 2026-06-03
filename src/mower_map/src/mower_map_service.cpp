@@ -27,6 +27,8 @@
 #include <rosbag/view.h>
 
 // Include Messages
+#include <nav_msgs/Path.h>
+
 #include "geometry_msgs/Point32.h"
 #include "geometry_msgs/Polygon.h"
 #include "mower_map/MapArea.h"
@@ -38,6 +40,7 @@
 #include "mower_map/ClearNavPointSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
+#include "mower_map/PersistNextGlobalPlanSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_map/SetNavPointSrv.h"
 
@@ -198,6 +201,24 @@ geometry_msgs::Pose fake_obstacle_pose;
 
 // The grid map. This is built from the polygons loaded from the file.
 grid_map::GridMap map;
+
+// Path persistence: bias the planner toward reusing previously-driven paths by adding their (low) cost to the
+// navigation costmap. The persisted paths are kept within areas of the configured type.
+enum ePersistMode {
+  NONE = 0,
+  PERSIST_AREAS = 1,
+  NAV_AREAS = 2,
+  MAP_AREAS = 3,
+};
+
+int persist_mode = ePersistMode::NONE;
+int persist_num_paths = 0;
+
+// Whether to persist the next global_plan message to the costmap
+bool persistNextGPlan = false;
+
+// The persisted global plans, used to bias the costmap.
+std::vector<nav_msgs::Path> PersistencePaths;
 
 // clang-format off
 xbot_rpc::RpcProvider rpc_provider("mower_map_service", {{
@@ -481,36 +502,36 @@ void buildMap() {
     Eigen::Vector2d obstacle_pos(fake_obstacle_pose.position.x, fake_obstacle_pose.position.y);
 
     {
-      grid_map::Position pos = obstacle_pos + 0.1 * left + 0.25 * front;
+      grid_map::Position pos = obstacle_pos + 0.2 * left + 0.6 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos + 0.2 * left - 0.1 * front;
+      grid_map::Position pos = obstacle_pos + 0.25 * left - 0.4 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos + 0.6 * left - 0.1 * front;
+      grid_map::Position pos = obstacle_pos + 0.70 * left - 0.4 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos + 0.6 * left + 0.7 * front;
+      grid_map::Position pos = obstacle_pos + 0.70 * left + 1.05 * front;
       poly.addVertex(pos);
     }
 
     {
-      grid_map::Position pos = obstacle_pos - 0.6 * left + 0.7 * front;
+      grid_map::Position pos = obstacle_pos - 0.55 * left + 1.05 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos - 0.6 * left - 0.1 * front;
+      grid_map::Position pos = obstacle_pos - 0.55 * left - 0.4 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos - 0.2 * left - 0.1 * front;
+      grid_map::Position pos = obstacle_pos - 0.25 * left - 0.4 * front;
       poly.addVertex(pos);
     }
     {
-      grid_map::Position pos = obstacle_pos - 0.1 * left + 0.25 * front;
+      grid_map::Position pos = obstacle_pos - 0.2 * left + 0.6 * front;
       poly.addVertex(pos);
     }
     for (grid_map::PolygonIterator iterator(map, poly); !iterator.isPastEnd(); ++iterator) {
@@ -522,7 +543,53 @@ void buildMap() {
   cv::Mat cv_map;
   grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "navigation_area", CV_8UC1, cv_map);
 
-  cv::blur(cv_map, cv_map, cv::Size(5, 5));
+  // Create a separate image for just the paths
+  cv::Mat path_image = cv::Mat::zeros(cv_map.size(), CV_8UC1);
+
+  if (persist_mode != ePersistMode::NONE) {
+    // Determine which area type(s) the persisted paths must lie within.
+    std::vector<std::string> persistAreaTypes;
+    if (persist_mode == ePersistMode::PERSIST_AREAS)
+      persistAreaTypes = {"persist"};
+    else if (persist_mode == ePersistMode::NAV_AREAS)
+      persistAreaTypes = {"nav"};
+    else if (persist_mode == ePersistMode::MAP_AREAS)
+      persistAreaTypes = {"nav", "mow"};
+    else
+      persistAreaTypes = {"mow"};
+
+    for (int j = 0; j < PersistencePaths.size(); j++) {
+      if (PersistencePaths[j].poses.size() >= 2) {
+        for (int i = 0; i < PersistencePaths[j].poses.size() - 1; i++) {
+          grid_map::Position startPos(PersistencePaths[j].poses[i].pose.position.x,
+                                      PersistencePaths[j].poses[i].pose.position.y);
+          grid_map::Position endPos(PersistencePaths[j].poses[i + 1].pose.position.x,
+                                    PersistencePaths[j].poses[i + 1].pose.position.y);
+
+          for (const auto& area : map_data.areas) {
+            if (!area.active) continue;
+            if (std::find(persistAreaTypes.begin(), persistAreaTypes.end(), area.type) == persistAreaTypes.end())
+              continue;
+            grid_map::Polygon poly = internalPolygonToGridMap(area.outline);
+            if (poly.isInside(startPos) && poly.isInside(endPos)) {
+              for (grid_map::LineIterator iterator(map, startPos, endPos); !iterator.isPastEnd(); ++iterator) {
+                const grid_map::Index index(*iterator);
+                double cost = 0.05 + ((0.2 * (j + 1)) / PersistencePaths.size());
+                path_image.at<uchar>(index[0], index[1]) = (uchar)(cost * 255);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Blur only the path image
+  cv::GaussianBlur(path_image, path_image, cv::Size(7, 7), 0);
+
+  cv::blur(cv_map, cv_map, cv::Size(10, 10));
+  // Take the maximum cost between original map and blurred paths
+  cv::max(cv_map, path_image, cv_map);
 
   grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(cv_map, "navigation_area", map);
 
@@ -776,9 +843,75 @@ void convertLegacyMapToJson() {
                   << map_data.areas.size() << " areas and " << map_data.docking_stations.size() << " docking stations");
 }
 
+bool persistNextGlobalPlan(mower_map::PersistNextGlobalPlanSrvRequest& req,
+                           mower_map::PersistNextGlobalPlanSrvResponse& res) {
+  ROS_INFO_STREAM("Got persistNextGlobalPlan call with value: " << (req.persist ? "True" : "False"));
+  persistNextGPlan = req.persist;
+  return true;
+}
+
+void FTCPlannerPathReceived(const nav_msgs::Path& msg) {
+  if (persist_mode == ePersistMode::NONE) {
+    PersistencePaths.clear();
+  } else {
+    if (persistNextGPlan) {
+      PersistencePaths.push_back(msg);
+      persistNextGPlan = false;
+
+      while (PersistencePaths.size() > persist_num_paths) {
+        PersistencePaths.erase(PersistencePaths.begin());
+      }
+
+      ROS_INFO_STREAM("mower_map_service: Persisted FTC global plan with " << PersistencePaths.back().poses.size()
+                                                                           << "points");
+      ROS_INFO_STREAM("mower_map_service: Total paths currently persisted: " << PersistencePaths.size());
+
+      rosbag::Bag bag;
+      bag.open("persistPaths.bag", rosbag::bagmode::Write);
+
+      for (auto& path : PersistencePaths) {
+        bag.write("persist_paths", ros::Time::now(), path);
+      }
+
+      bag.close();
+      ROS_INFO_STREAM("mower_map_service: Total paths saved to bag: " << PersistencePaths.size());
+    }
+  }
+}
+
+void readPersistPathsFromFile(void) {
+  rosbag::Bag bag;
+  try {
+    bag.open("persistPaths.bag");
+  } catch (rosbag::BagIOException& e) {
+    ROS_WARN("mower_map_service: Error opening stored persisted paths.");
+    return;
+  }
+
+  PersistencePaths.clear();
+  {
+    rosbag::View view(bag, rosbag::TopicQuery("persist_paths"));
+
+    for (rosbag::MessageInstance const m : view) {
+      auto path = m.instantiate<nav_msgs::Path>();
+      if (path) {
+        PersistencePaths.push_back(*path);
+      }
+    }
+  }
+
+  // config could have changed since last start so limit paths if needed
+  while (PersistencePaths.size() > persist_num_paths) {
+    PersistencePaths.erase(PersistencePaths.begin());
+  }
+
+  ROS_INFO_STREAM("mower_map_service: Persisted paths restored from bag: " << PersistencePaths.size());
+}
+
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_map_service");
   ros::NodeHandle n;
+  ros::NodeHandle paramNh("~");
   json_map_pub = n.advertise<std_msgs::String>("mower_map_service/json_map", 1, true);
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
   map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
@@ -793,6 +926,20 @@ int main(int argc, char** argv) {
     readMapFromFile();
   }
 
+  paramNh.getParam("persist_mode", persist_mode);
+  if ((persist_mode > ePersistMode::MAP_AREAS) || (persist_mode < ePersistMode::NONE))
+    persist_mode = ePersistMode::NONE;
+  paramNh.getParam("persist_num_paths", persist_num_paths);
+  if (persist_num_paths > 30) persist_num_paths = 30;
+  if (persist_num_paths < 0) {
+    persist_mode = ePersistMode::NONE;
+    persist_num_paths = 0;
+  }
+  ROS_INFO_STREAM("mower_map_service: Persist configured, mode:" << persist_mode
+                                                                 << ", max_paths:" << persist_num_paths);
+
+  if (persist_mode != ePersistMode::NONE) readPersistPathsFromFile();
+
   buildMap();
 
   ros::ServiceServer add_area_srv = n.advertiseService("mower_map_service/add_mowing_area", addMowingArea);
@@ -802,6 +949,12 @@ int main(int argc, char** argv) {
   ros::ServiceServer set_nav_point_srv = n.advertiseService("mower_map_service/set_nav_point", setNavPoint);
   ros::ServiceServer clear_nav_point_srv = n.advertiseService("mower_map_service/clear_nav_point", clearNavPoint);
   ros::ServiceServer clear_map_srv = n.advertiseService("mower_map_service/clear_map", clearMap);
+
+  ros::ServiceServer persist_next_global_plan_srv =
+      n.advertiseService("mower_map_service/persist_next_global_plan", persistNextGlobalPlan);
+
+  ros::Subscriber FTCPlanner_path_sub =
+      n.subscribe("/move_base_flex/FTCPlanner/global_plan", 1, FTCPlannerPathReceived);
 
   ros::spin();
   return 0;
