@@ -15,6 +15,7 @@ bool sound_module_available
 bool sound_module_busy
 bool ui_board_available
 bool mow_enabled
+float32[5] ultrasonic_ranges
 
 # ESC stuff
 uint8   mower_esc_status

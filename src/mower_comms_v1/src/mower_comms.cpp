@@ -224,6 +224,12 @@ void publishStatus() {
   status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
   status_msg.mow_enabled = !(target_speed_mow == 0);
 
+  status_msg.ultrasonic_ranges[0] = last_ll_status.uss_ranges_m[0];
+  for (uint8_t i = 1; i < 4; i++) {
+    status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i] / 100;
+  }
+  status_msg.ultrasonic_ranges[4] = last_ll_status.uss_ranges_m[4];
+
   // overwrite emergency with the LL value.
   emergency_low_level = last_ll_status.emergency_bitmask > 0;
   active_low_level_emergency = last_ll_status.emergency_bitmask & 0xFE;
