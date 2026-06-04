@@ -209,6 +209,7 @@ enum ePersistMode {
   PERSIST_AREAS = 1,
   NAV_AREAS = 2,
   MAP_AREAS = 3,
+  MOW_AREAS = 4,
 };
 
 int persist_mode = ePersistMode::NONE;
@@ -555,6 +556,8 @@ void buildMap() {
       persistAreaTypes = {"nav"};
     else if (persist_mode == ePersistMode::MAP_AREAS)
       persistAreaTypes = {"nav", "mow"};
+    else if (persist_mode == ePersistMode::MOW_AREAS)
+      persistAreaTypes = {"mow"};
     else
       persistAreaTypes = {"mow"};
 
@@ -927,7 +930,7 @@ int main(int argc, char** argv) {
   }
 
   paramNh.getParam("persist_mode", persist_mode);
-  if ((persist_mode > ePersistMode::MAP_AREAS) || (persist_mode < ePersistMode::NONE))
+  if ((persist_mode > ePersistMode::MOW_AREAS) || (persist_mode < ePersistMode::NONE))
     persist_mode = ePersistMode::NONE;
   paramNh.getParam("persist_num_paths", persist_num_paths);
   if (persist_num_paths > 30) persist_num_paths = 30;
