@@ -632,6 +632,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest& req, mower_msgs::H
 
 void handle_action(std::string action) {
   if (action == "mower_logic:automatic_mowing/stop") {
+    ROS_WARN_STREAM("Got stop mowing.");
     auto new_config = getConfig();
     if (!new_config.manual_pause_mowing) {
       new_config.manual_pause_mowing = true;
@@ -639,6 +640,7 @@ void handle_action(std::string action) {
     }
   } else if (action == "mower_logic:automatic_mowing/start") {
     auto new_config = getConfig();
+    ROS_WARN_STREAM("Got start mowing.");
     if (new_config.manual_pause_mowing) {
       new_config.manual_pause_mowing = false;
       setConfig(new_config);
