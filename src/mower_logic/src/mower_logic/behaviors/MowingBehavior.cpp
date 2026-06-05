@@ -453,7 +453,16 @@ bool MowingBehavior::execute_mowing_plan() {
             ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) - Attempt "
                             << first_point_trim_counter << " / " << config.max_first_point_trim_attempts
                             << " Trimming first point off the beginning of the mow path.");
-            currentMowingPathIndex++;
+            currentMowingPathIndex += 20;
+            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) skipped ahead 20 to index " << currentMowingPathIndex);
+            if (currentMowingPathIndex >= path.path.poses.size() ||
+                (path.path.poses.size() - currentMowingPathIndex) < 5)  // fully mowed the path ?
+            {
+              ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
+              currentMowingPath++;
+              currentMowingPathIndex = 0;
+              // continue with next segment
+            }
             first_point_trim_counter++;
             first_point_attempt_counter = 0;  // give it another <config.max_first_point_attempts> attempts
             paused = true;
@@ -613,6 +622,16 @@ bool MowingBehavior::execute_mowing_plan() {
                   }
                 }
               }
+            }
+            currentMowingPathIndex += 20;
+            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) skipped ahead 20 to index " << currentMowingPathIndex);
+            if (currentMowingPathIndex >= path.path.poses.size() ||
+                (path.path.poses.size() - currentMowingPathIndex) < 5)  // fully mowed the path ?
+            {
+              ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
+              currentMowingPath++;
+              currentMowingPathIndex = 0;
+              // continue with next segment
             }
             ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
             paused = true;
