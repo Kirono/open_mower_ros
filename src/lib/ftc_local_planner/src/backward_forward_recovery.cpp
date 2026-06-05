@@ -4,6 +4,7 @@
 #include <tf2/utils.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <cmath>
+#include <angles/angles.h>
 
 namespace ftc_local_planner
 {
@@ -134,8 +135,10 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose& pose, bool 
   for (unsigned int i = 0; i <= steps; ++i)
   {
     double dist = i * resolution;
-    double x = pose.position.x + dist * std::cos(yaw);
-    double y = pose.position.y + dist * std::sin(yaw);
+    double yaw_cos = std::cos(yaw);
+		double yaw_sin = std::sin(yaw);
+    double x = pose.position.x + dist * yaw_cos;
+    double y = pose.position.y + dist * yaw_sin;
 
     unsigned int mx, my;
     if (!costmap->worldToMap(x, y, mx, my))
@@ -147,6 +150,38 @@ bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose& pose, bool 
     if (cost > max_cost_threshold_)
     {
       return false;
+    }
+    
+    std::vector<geometry_msgs::Point> footprint;
+    local_costmap_->getOrientedFootprint(footprint);
+
+    for (size_t fp_idx = 0; fp_idx < footprint.size(); fp_idx++) {
+      // Calculate the footprint point's position relative to the middle point (x, y)
+      double rel_x = footprint[fp_idx].x - x;
+      double rel_y = footprint[fp_idx].y - y;
+
+      // Check if this footprint point is in the "front" direction relative to the middle point
+      // by computing dot product with the yaw direction vector
+      double dot_product = rel_x * yaw_cos + rel_y * yaw_sin;
+      if (!forward) {
+        dot_product = -1 * dot_product;
+      }
+
+      // Only check points that are in front of the middle point (positive dot product)
+      if (dot_product > 0) {
+        double check_x = footprint[fp_idx].x + dist * yaw_cos;
+        double check_y = footprint[fp_idx].y + dist * yaw_sin;
+
+        if (!local_costmap_->getCostmap()->worldToMap(check_x, check_y, mx, my)) {
+          ROS_WARN("Obstacle too close footprint outside after checking %.2f meters, index %zu", dist, fp_idx);
+          return false;
+        }
+        cost = local_costmap_->getCostmap()->getCost(mx, my);
+        if (cost >= max_cost_threshold_) {
+          ROS_WARN("Obstacle too close footprint above threshold after checking %.2f meters, index %zu", dist, fp_idx);
+          return false;
+        }
+      }
     }
   }
 
