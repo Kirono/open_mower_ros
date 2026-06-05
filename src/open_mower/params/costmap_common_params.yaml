@@ -14,6 +14,7 @@ plugins:
 
 static_layer:
   map_topic: mower_map_service/map
+  trinary_costmap: false
 obstacle_layer:
   max_obstacle_height: 1.0
   obstacle_range: 3.0

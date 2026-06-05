@@ -1,3 +1,4 @@
+/move_base_flex/global_costmap/static_layer/trinary_costmap: false
 global_costmap:
   update_frequency: 1.0
   publish_frequency: 1.0
