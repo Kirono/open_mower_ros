@@ -23,7 +23,10 @@ public:
 
 private:
   bool attemptMove(double distance, bool forward);
+  bool attemptoTurn(double distance);
   bool isPathClear(const geometry_msgs::Pose& pose, bool forward);
+  bool isDestinationClear(const geometry_msgs::Pose& pose, bool forward, double destinationdist);
+  double getDesiredYawChange(const geometry_msgs::Pose &pose, double obstacle_check_path);
 
   std::string name_;
   bool initialized_;     
@@ -32,6 +35,7 @@ private:
   ros::Publisher cmd_vel_pub_;
   double max_distance_;
   double linear_vel_;
+  double angular_vel_;
   double check_frequency_;
   unsigned char max_cost_threshold_;
   double obstacle_check_distance_;
