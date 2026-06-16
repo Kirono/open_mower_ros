@@ -114,6 +114,7 @@
                 value="$(eval battery_empty_voltage if battery_critical_voltage=='' else battery_critical_voltage)"
         />
         <param name="ll/services/power/battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
+        <param name="ll/services/power/battery_full_current" value="$(env OM_BATTERY_FULL_CURRENT)"/>
         <param name="ll/services/power/battery_critical_high_voltage"
                value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE -1)"/>
         <param name="ll/services/power/charge_critical_high_voltage"

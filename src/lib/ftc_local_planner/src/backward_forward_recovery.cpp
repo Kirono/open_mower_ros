@@ -13,7 +13,7 @@ BackwardForwardRecovery::BackwardForwardRecovery()
   : initialized_(false),
     max_distance_(0.5),
     linear_vel_(0.6),
-    angular_vel_(1.6),
+    angular_vel_(2.1),
     check_frequency_(10.0),
     max_cost_threshold_(costmap_2d::INSCRIBED_INFLATED_OBSTACLE-10),
     obstacle_check_distance_(0.5),
@@ -34,7 +34,7 @@ void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer* tf,
 
     private_nh.param("max_distance", max_distance_, 0.5);
     private_nh.param("linear_vel", linear_vel_, 0.6);
-    private_nh.param("angular_vel", angular_vel_, 1.6);
+    private_nh.param("angular_vel", angular_vel_, 2.1);
     private_nh.param("check_frequency", check_frequency_, 10.0);
     int temp_threshold;
     private_nh.param("max_cost_threshold", temp_threshold, static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE-10));
@@ -136,7 +136,7 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward)
       cmd_vel.linear.x = 0;
       cmd_vel_pub_.publish(cmd_vel);
       return false;
-    } else if(pathisclear){
+    } else if(pathisclear && !path_has_been_clear){
 		ROS_WARN("Obstacle clear after moving %.2f meters",
 						moved_distance);
       path_has_been_clear = 1;

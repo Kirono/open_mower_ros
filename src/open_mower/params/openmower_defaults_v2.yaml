@@ -16,6 +16,7 @@ ll:
       battery_critical_high_voltage: -1
       charge_critical_high_voltage: -1
       charge_critical_high_current: -1
+      battery_full_current: 1.2
 
 xbot_positioning:
   max_gps_accuracy: 0.2

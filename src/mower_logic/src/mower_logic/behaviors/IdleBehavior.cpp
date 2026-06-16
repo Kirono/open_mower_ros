@@ -29,6 +29,9 @@ extern void setRobotPose(geometry_msgs::Pose& pose);
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 extern ros::Time rain_resume;
 
+float old_battery_i = 0;
+bool charge_rdy_current = 0;
+
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
@@ -93,9 +96,18 @@ Behavior* IdleBehavior::execute() {
         utils::GetFirstValid({last_power.battery_voltage_adc, last_bms.voltage, last_power.battery_voltage});
     const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage});
 
-    const bool mower_ready = last_battery_v > last_power_config.battery_full_voltage &&
+    charge_rdy_current = charge_rdy_current || (last_power.charge_current < last_config.battery_full_current &&
+                                                old_battery_i >= last_config.battery_full_current &&
+                                                last_battery_v > last_power_config.battery_full_voltage - 1.5);
+    if (last_charge_v < 5) {
+      charge_rdy_current = 0;
+    }
+
+    const bool mower_ready = (last_battery_v > last_power_config.battery_full_voltage || charge_rdy_current) &&
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
                              !last_config.manual_pause_mowing && !rain_delay;
+
+    old_battery_i = last_power.charge_current;
 
     if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
       // set the robot's position to the dock if we're actually docked
@@ -131,6 +143,7 @@ Behavior* IdleBehavior::execute() {
 }
 
 void IdleBehavior::enter() {
+  charge_rdy_current = 0;
   start_area_recorder = false;
   // Reset the docking behavior, to allow docking
   DockingBehavior::INSTANCE.reset();
