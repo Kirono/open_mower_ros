@@ -42,6 +42,7 @@ class MowingBehavior : public Behavior {
   int currentMowingPathIndex;
   std::string currentMowingPlanDigest;
   double currentMowingAngleIncrementSum;
+  bool outlineReversed;
 
  public:
   MowingBehavior();

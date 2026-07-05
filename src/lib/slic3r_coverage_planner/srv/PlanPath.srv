@@ -9,6 +9,7 @@ uint8 outline_overlap_count
 bool skip_area_outline
 bool skip_obstacle_outlines
 bool skip_fill
+bool doPerimeterClockwise
 geometry_msgs/Polygon outline
 geometry_msgs/Polygon[] holes
 ---

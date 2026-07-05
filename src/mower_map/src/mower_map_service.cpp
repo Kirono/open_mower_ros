@@ -590,7 +590,7 @@ void buildMap() {
   // Blur only the path image
   cv::GaussianBlur(path_image, path_image, cv::Size(7, 7), 0);
 
-  cv::blur(cv_map, cv_map, cv::Size(10, 10));
+  cv::blur(cv_map, cv_map, cv::Size(7, 7));
   // Take the maximum cost between original map and blurred paths
   cv::max(cv_map, path_image, cv_map);
 

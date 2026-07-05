@@ -118,6 +118,7 @@ void MowingBehavior::reset() {
   currentMowingPathIndex = 0;
   // increase cumulative mowing angle offset increment
   currentMowingAngleIncrementSum = std::fmod(currentMowingAngleIncrementSum + getConfig().mow_angle_increment, 360);
+  outlineReversed = !outlineReversed;
   checkpoint();
 
   if (config.automatic_mode == eAutoMode::SEMIAUTO) {
@@ -215,6 +216,11 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
   pathSrv.request.outer_offset = std::isnan(area.outline_offset) ? config.outline_offset : area.outline_offset;
   pathSrv.request.distance = config.tool_width;
+  if (config.alternate_outline) {
+    pathSrv.request.doPerimeterClockwise = outlineReversed;
+  } else {
+    pathSrv.request.doPerimeterClockwise = false;
+  }
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
     return false;
@@ -777,6 +783,7 @@ void MowingBehavior::checkpoint() {
   cp.currentMowingPathIndex = currentMowingPathIndex;
   cp.currentMowingPlanDigest = currentMowingPlanDigest;
   cp.currentMowingAngleIncrementSum = currentMowingAngleIncrementSum;
+  cp.outlineReversed = outlineReversed;
   bag.open("checkpoint.bag", rosbag::bagmode::Write);
   bag.write("checkpoint", ros::Time::now(), cp);
   bag.close();
@@ -794,6 +801,7 @@ bool MowingBehavior::restore_checkpoint() {
     currentMowingPath = 0;
     currentMowingPathIndex = 0;
     currentMowingAngleIncrementSum = 0;
+    outlineReversed = false;
     return false;
   }
   {
@@ -803,14 +811,15 @@ bool MowingBehavior::restore_checkpoint() {
       if (cp) {
         ROS_INFO_STREAM("Restoring checkpoint for plan ("
                         << cp->currentMowingPlanDigest << ")"
-                        << " area: " << cp->currentMowingArea << " path: " << cp->currentMowingPath
-                        << " index: " << cp->currentMowingPathIndex
-                        << " angle increment sum: " << cp->currentMowingAngleIncrementSum);
+                        << " area: " << cp->currentMowingArea << " path: " << cp->currentMowingPath << " index: "
+                        << cp->currentMowingPathIndex << " angle increment sum: " << cp->currentMowingAngleIncrementSum
+                        << " outline reverse: " << cp->outlineReversed);
         currentMowingPath = cp->currentMowingPath;
         currentMowingArea = cp->currentMowingArea;
         currentMowingPathIndex = cp->currentMowingPathIndex;
         currentMowingPlanDigest = cp->currentMowingPlanDigest;
         currentMowingAngleIncrementSum = cp->currentMowingAngleIncrementSum;
+        outlineReversed = cp->outlineReversed;
         found = true;
         break;
       }

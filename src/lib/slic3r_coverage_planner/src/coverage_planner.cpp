@@ -459,15 +459,24 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         if (!req.skip_area_outline) {
             traverse_from_right(contours[0], area_outlines);
         }
+        if (req.doPerimeterClockwise == true) {
+			for (auto &group: area_outlines) {
+				for (auto &poly: group) {
+					std::reverse(poly.points.begin(), poly.points.end());
+				}
+			}
+		}
 
         if (!req.skip_obstacle_outlines) {
             for (auto &hole: holes) {
                 traverse_from_left(hole, obstacle_outlines);
             }
-            for (auto &obstacle_group: obstacle_outlines) {
-                for (auto &poly: obstacle_group) {
-                    std::reverse(poly.points.begin(), poly.points.end());
-                }
+            if (req.doPerimeterClockwise == false) {
+				for (auto &obstacle_group: obstacle_outlines) {
+					for (auto &poly: obstacle_group) {
+						std::reverse(poly.points.begin(), poly.points.end());
+					}
+				}
             }
         }
     }
